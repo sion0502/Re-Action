@@ -14,6 +14,7 @@ namespace ReAction.Core
     /// 게임 루프의 중심. 월드는 항상 고정 틱으로만 진행한다: Executing은 정상 속도, Planning은 아주 느리게
     /// (_planningTimeScale), Interpreting과 그 밖의 상태는 정지.
     /// 플레이어가 죽으면 Dead(다시 시작 버튼 대기) → Rewind(되감기 연출) → Reset(월드 초기화, 발견 정보는 유지) → Planning.
+    /// 옥상에 닿으면 Cleared(잠깐) → FinalRun(이번 시도를 멈춤 없이 재생) → Result.
     /// </summary>
     public sealed class GameController : MonoBehaviour
     {
@@ -31,6 +32,9 @@ namespace ReAction.Core
         [Tooltip("계획(프롬프트 입력) 중 시간 배율. 0이면 완전 정지")]
         [SerializeField, Range(0f, 0.2f)] private float _planningTimeScale = 0.01f;
 
+        [Tooltip("클리어 후 FINAL RUN이 시작되기까지 \"CLEAR\"를 보여주는 시간 (초)")]
+        [SerializeField] private float _clearPauseSeconds = 1.2f;
+
         [Tooltip("사망 후 다시 시작 버튼을 누를 수 있게 되기까지의 시간 (초, 사망 연출이 보이도록)")]
         [SerializeField] private float _deathPauseSeconds = 0.6f;
 
@@ -45,6 +49,10 @@ namespace ReAction.Core
         private int _settleTicks;
         private int _groundedTicks;
         private float _deadTimer;
+        private float _clearTimer;
+        private RunRecord _clearedRecord;
+        private RunReplayer _replayer;
+        private int _clearTick;
 
         public GameState State => _states.Current;
         public int Tick => _sim?.Tick ?? 0;
@@ -77,9 +85,24 @@ namespace ReAction.Core
         /// <summary>마지막 사망 원인 (리셋 후에도 다음 사망 전까지 유지).</summary>
         public string LastDeathCause { get; private set; } = "";
 
-        /// <summary>사망 연출이 끝나 다시 시작할 수 있는 상태인지.</summary>
+        /// <summary>사망 연출이 끝나 다시 시작할 수 있는 상태인지 (결과 화면에서도 가능).</summary>
         public bool CanRestart =>
-            (_states.Current == GameState.Dead && _deadTimer <= 0f) || _states.Current == GameState.Cleared;
+            (_states.Current == GameState.Dead && _deadTimer <= 0f) || _states.Current == GameState.Result;
+
+        /// <summary>클리어한 시도의 프롬프트 수.</summary>
+        public int ClearPrompts => _clearedRecord?.Plans.Count ?? 0;
+
+        /// <summary>클리어한 시도의 행동 수 (방향 전환 같은 무료 지시 제외).</summary>
+        public int ClearActions { get; private set; }
+
+        /// <summary>클리어까지 걸린 월드 시간 (초).</summary>
+        public float ClearSeconds { get; private set; }
+
+        /// <summary>FINAL RUN이 원래 시도와 다르게 흘러갔는지 (결정론이 깨졌다는 신호).</summary>
+        public bool FinalRunDesynced { get; private set; }
+
+        /// <summary>FINAL RUN에서 지금 재생 중인 프롬프트 (자막용).</summary>
+        public string ReplayPrompt => _replayer?.Current?.Prompt ?? "";
 
         /// <summary>마지막 실행 결과를 사람이 읽을 수 있게 요약한 문자열.</summary>
         public string LastResult { get; private set; } = "";
@@ -201,15 +224,33 @@ namespace ReAction.Core
             return true;
         }
 
-        /// <summary>목표(옥상) 도달. 실행 중에만 인정한다.</summary>
+        /// <summary>목표(옥상) 도달. 실행 중이면 클리어, FINAL RUN 중이면 재생 완료.</summary>
         public void NotifyCleared()
         {
+            if (_states.Current == GameState.FinalRun)
+            {
+                // 원래 시도와 같은 틱에 옥상에 닿아야 정확히 재현된 것이다.
+                FinishFinalRun(desynced: Tick != _clearTick);
+                return;
+            }
             if (_states.Current != GameState.Executing) return;
+
             _sim.Executor.Cancel();
             _settling = false;
-            _player.Velocity = Vector2.zero;
+            _clearedRecord = new RunRecord();
+            foreach (var plan in _runRecord.Plans) _clearedRecord.Add(plan);
+            ClearActions = _clearedRecord.Plans.Sum(p => ActionRules.CountTowardLimit(p.Actions.Select(a => a.Type)));
+            _clearTick = Tick;
+            ClearSeconds = Tick / (float)DeterministicClock.TicksPerSecond;
+            _clearTimer = _clearPauseSeconds;
             PzLog.Info($"Cleared! attempt {Attempt}, prompts {TotalPrompts}, tick {Tick}");
             _states.TryTransition(GameState.Cleared);
+        }
+
+        /// <summary>FINAL RUN을 건너뛰고 결과 화면으로.</summary>
+        public void SkipFinalRun()
+        {
+            if (_states.Current == GameState.FinalRun) FinishFinalRun(desynced: false);
         }
 
         /// <summary>
@@ -241,7 +282,57 @@ namespace ReAction.Core
                     // 자동으로 넘어가지 않는다. 연출 시간이 지나면 다시 시작 버튼이 활성화된다.
                     if (_deadTimer > 0f) _deadTimer -= Time.deltaTime;
                     break;
+
+                case GameState.Cleared:
+                    _clearTimer -= Time.deltaTime;
+                    if (_clearTimer <= 0f) StartFinalRun();
+                    break;
+
+                case GameState.FinalRun:
+                    int replaySteps = _clock.Advance(Time.deltaTime);
+                    for (int i = 0; i < replaySteps && _states.Current == GameState.FinalRun; i++)
+                        ReplayTick();
+                    break;
             }
+        }
+
+        private void StartFinalRun()
+        {
+            if (!_states.TryTransition(GameState.FinalRun)) return;
+
+            // 월드만 처음 상태로 돌리고 (시도 횟수는 그대로), 기록된 프롬프트를 같은 틱에 다시 넣는다.
+            _resetter.ResetAll();
+            _sim.Executor.Cancel();
+            _sim.ResetTicks();
+            _recorder.Clear();
+            _recorder.Record();
+            FinalRunDesynced = false;
+            _replayer = new RunReplayer(_clearedRecord, request => ActionFactory.Create(request, _catalog, _stage));
+            WorldReset?.Invoke();
+            PzLog.Info($"FINAL RUN start ({_clearedRecord.Plans.Count} prompts)");
+        }
+
+        private void ReplayTick()
+        {
+            // 마지막 프롬프트 뒤로 너무 오래 끝나지 않으면 재현이 어긋난 것으로 본다.
+            const int maxTicksAfterLastPlan = 60 * 20;
+            if (!_replayer.BeforeStep(_sim) || Tick > _replayer.LastPlanTick + maxTicksAfterLastPlan)
+            {
+                FinishFinalRun(desynced: true);
+                return;
+            }
+
+            _sim.Step();
+            if (_player.IsDead) FinishFinalRun(desynced: true);
+        }
+
+        private void FinishFinalRun(bool desynced)
+        {
+            FinalRunDesynced = desynced;
+            _sim.Executor.Cancel();
+            if (desynced) PzLog.Warn($"FINAL RUN diverged from the original run at tick {Tick}");
+            else PzLog.Info($"FINAL RUN finished at tick {Tick}");
+            _states.TryTransition(GameState.Result);
         }
 
         private void SimulateTick()
@@ -271,7 +362,7 @@ namespace ReAction.Core
             if (_groundedTicks < SettleGroundedTicks && _settleTicks < MaxSettleTicks) return;
 
             _settling = false;
-            if (!_player.IsClinging) _player.Velocity = Vector2.zero;
+            // 여기서 속도 등 월드 상태를 건드리면 FINAL RUN 재현이 어긋난다. 틱 안에서만 바꾼다.
             _states.TryTransition(GameState.Planning);
         }
 

@@ -235,6 +235,7 @@ namespace ReAction.Editor
                 var animator = visual.AddComponent<Animator>();
                 animator.runtimeAnimatorController = controller;
                 visual.AddComponent<AfterimageTrail>();
+                visual.AddComponent<HeroAnimationEvents>();
 
                 var view = root.AddComponent<PlayerView>();
                 SetRef(view, "_motor", motor);

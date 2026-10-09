@@ -11,5 +11,6 @@ namespace ReAction.Core
         Reset,
         Cleared,
         FinalRun,
+        Result,
     }
 }

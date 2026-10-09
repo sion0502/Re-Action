@@ -123,6 +123,40 @@ namespace ReAction.Tests
         }
 
         [Test]
+        public void FinalRunReplay_ReproducesRecordedRun()
+        {
+            // 원래 시도: 계획 대기 틱을 섞어 가며 실행하고 RunRecord에 (틱, 행동)을 남긴다.
+            var record = new ReAction.Replay.RunRecord();
+            var original = new List<string>();
+            Idle(12, original);
+            RecordAndExecute(record, original, new ActionRequest(ActionType.Roll, Direction.Left));
+            Idle(7, original);
+            RecordAndExecute(record, original, new ActionRequest(ActionType.Run, Direction.Right),
+                new ActionRequest(ActionType.Slash));
+            Idle(60, original);
+
+            // FINAL RUN: 월드를 되돌리고 기록만으로 같은 틱 수를 재생한다.
+            _resetter.ResetAll();
+            _sim.ResetTicks();
+            var replayer = new ReAction.Replay.RunReplayer(record, r => ActionFactory.Create(r, _catalog));
+            var replay = new List<string>();
+            while (replay.Count < original.Count)
+            {
+                Assert.That(replayer.BeforeStep(_sim), Is.True);
+                StepAndTrace(replay);
+            }
+
+            Assert.That(replay, Is.EqualTo(original));
+        }
+
+        private void RecordAndExecute(ReAction.Replay.RunRecord record, List<string> trace, params ActionRequest[] plan)
+        {
+            if (_player.IsDead) return;
+            record.Add(new ReAction.Replay.PlanRecord(_sim.Tick, "", null, plan));
+            ExecutePlan(trace, plan);
+        }
+
+        [Test]
         public void IdlePlanningTicks_AdvanceTheWorld()
         {
             var goblinStart = _goblin.Position;

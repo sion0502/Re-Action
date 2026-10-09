@@ -19,6 +19,8 @@ namespace ReAction.UI
         [SerializeField] private TMP_Text _preview;
         [SerializeField] private TMP_Text _message;
         [SerializeField] private TMP_Text _status;
+        [Tooltip("화면 위 가운데 큰 글씨 (CLEAR / FINAL RUN)")]
+        [SerializeField] private TMP_Text _title;
 
         [Header("Death")]
         [SerializeField] private GameObject _deathPanel;
@@ -59,6 +61,7 @@ namespace ReAction.UI
 
             KeepInputFocused();
             UpdateDeathPanel(keyboard);
+            UpdateFinalRun(keyboard);
 
             _status.text = $"시도 #{_game.Attempt} · {StatusText()}";
         }
@@ -74,6 +77,8 @@ namespace ReAction.UI
                 case GameState.Dead: return "죽었다";
                 case GameState.Rewind: return "되감는 중 (클릭: 건너뛰기)";
                 case GameState.Cleared: return "클리어!";
+                case GameState.FinalRun: return "FINAL RUN 재생 중 (클릭: 건너뛰기)";
+                case GameState.Result: return "결과";
                 default: return "";
             }
         }
@@ -99,22 +104,20 @@ namespace ReAction.UI
         }
 
         /// <summary>
-        /// 죽으면 원인과 다시 시작 버튼을, 클리어하면 결과와 처음부터 다시 버튼을 띄운다.
+        /// 죽으면 원인과 다시 시작 버튼을, FINAL RUN이 끝나면 결과와 처음부터 다시 버튼을 띄운다.
         /// 사망 연출이 끝나야 누를 수 있다 (Enter도 가능).
         /// </summary>
         private void UpdateDeathPanel(Keyboard keyboard)
         {
             bool dead = _game.State == GameState.Dead;
-            bool cleared = _game.State == GameState.Cleared;
-            bool show = dead || cleared;
+            bool result = _game.State == GameState.Result;
+            bool show = dead || result;
             if (_deathPanel.activeSelf != show) _deathPanel.SetActive(show);
             if (!show) return;
 
-            _deathText.text = cleared
-                ? $"클리어! 시도 {_game.Attempt}회 · 프롬프트 {_game.TotalPrompts}개"
-                : _game.LastDeathCause;
+            _deathText.text = result ? ResultText() : _game.LastDeathCause;
             if (_restartLabel == null) _restartLabel = _restartButton.GetComponentInChildren<TMP_Text>();
-            if (_restartLabel != null) _restartLabel.text = cleared ? "처음부터 다시 (Enter)" : "다시 시작 (Enter)";
+            if (_restartLabel != null) _restartLabel.text = result ? "처음부터 다시 (Enter)" : "다시 시작 (Enter)";
             _restartButton.interactable = _game.CanRestart;
             if (_game.CanRestart && keyboard != null &&
                 (keyboard.enterKey.wasPressedThisFrame || keyboard.numpadEnterKey.wasPressedThisFrame))
@@ -122,6 +125,30 @@ namespace ReAction.UI
         }
 
         private void OnRestartClicked() => _game.RequestRestart();
+
+        private string ResultText()
+        {
+            string text = $"클리어! 총 시도 {_game.Attempt}회\n" +
+                          $"프롬프트 {_game.ClearPrompts}개 · 행동 {_game.ClearActions}개 · {_game.ClearSeconds:0.0}초";
+            if (_game.FinalRunDesynced) text += "\n(리플레이가 원래 시도와 어긋났다)";
+            return text;
+        }
+
+        /// <summary>CLEAR / FINAL RUN 제목과 재생 중인 프롬프트 자막. FINAL RUN은 클릭이나 키로 건너뛴다.</summary>
+        private void UpdateFinalRun(Keyboard keyboard)
+        {
+            var state = _game.State;
+            _title.text = state == GameState.Cleared ? "CLEAR"
+                : state == GameState.FinalRun ? "FINAL RUN"
+                : "";
+            if (state != GameState.FinalRun) return;
+
+            _preview.text = _game.ReplayPrompt.Length > 0 ? $"> {_game.ReplayPrompt}" : "";
+            var mouse = Mouse.current;
+            bool skip = (mouse != null && mouse.leftButton.wasPressedThisFrame) ||
+                        (keyboard != null && keyboard.anyKey.wasPressedThisFrame);
+            if (skip) _game.SkipFinalRun();
+        }
 
         private void OnSubmit(string text)
         {
@@ -142,6 +169,12 @@ namespace ReAction.UI
         private void OnStateChanged(GameState from, GameState to)
         {
             _input.interactable = to == GameState.Planning || to == GameState.Interpreting;
+            if (to == GameState.Cleared || to == GameState.Result)
+            {
+                _input.text = "";
+                _planning.ClearFeedback();
+                _preview.text = "";
+            }
             if (to == GameState.Dead)
             {
                 // 입력하던 중에 죽었으면 쓰던 프롬프트는 버린다.

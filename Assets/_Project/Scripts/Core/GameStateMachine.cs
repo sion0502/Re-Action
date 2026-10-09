@@ -20,7 +20,8 @@ namespace ReAction.Core
             { GameState.Reset, new[] { GameState.Planning } },
             // 클리어 후 FINAL RUN(M6) 또는 처음부터 다시
             { GameState.Cleared, new[] { GameState.FinalRun, GameState.Rewind } },
-            { GameState.FinalRun, new[] { GameState.Planning } },
+            { GameState.FinalRun, new[] { GameState.Result } },
+            { GameState.Result, new[] { GameState.Rewind } },
         };
 
         public GameState Current { get; private set; } = GameState.Boot;

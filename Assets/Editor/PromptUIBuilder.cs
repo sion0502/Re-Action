@@ -92,6 +92,11 @@ namespace ReAction.Editor
 
             var (deathPanel, deathText, restartButton) = CreateDeathPanel(root, font);
 
+            var title = CreateText("Title", root, font, TextColor, TextAlignmentOptions.Top);
+            title.fontSize = FontSize * 2;
+            Place(title.rectTransform, new Vector2(0.5f, 1f), new Vector2(0.5f, 1f), new Vector2(0.5f, 1f),
+                new Vector2(0f, -22f), new Vector2(300f, 28f));
+
             var ui = canvasGo.AddComponent<PromptUI>();
             SetRef(ui, "_game", game);
             SetRef(ui, "_planning", planning);
@@ -100,6 +105,7 @@ namespace ReAction.Editor
             SetRef(ui, "_preview", preview);
             SetRef(ui, "_message", message);
             SetRef(ui, "_status", status);
+            SetRef(ui, "_title", title);
             SetRef(ui, "_deathPanel", deathPanel);
             SetRef(ui, "_deathText", deathText);
             SetRef(ui, "_restartButton", restartButton);
@@ -111,12 +117,12 @@ namespace ReAction.Editor
             TMP_FontAsset font)
         {
             var panel = CreateRect("DeathPanel", root, new Vector2(0.5f, 0.5f), new Vector2(0.5f, 0.5f),
-                new Vector2(0.5f, 0.5f), new Vector2(0f, 20f), new Vector2(220f, 64f));
+                new Vector2(0.5f, 0.5f), new Vector2(0f, 20f), new Vector2(240f, 84f));
             panel.gameObject.AddComponent<Image>().color = new Color(0f, 0f, 0f, 0.85f);
 
             var cause = CreateText("Cause", panel, font, MessageColor, TextAlignmentOptions.Center);
             Place(cause.rectTransform, new Vector2(0f, 1f), new Vector2(1f, 1f), new Vector2(0.5f, 1f),
-                new Vector2(0f, -8f), new Vector2(-12f, 16f));
+                new Vector2(0f, -6f), new Vector2(-12f, 46f));
 
             var buttonGo = TMP_DefaultControls.CreateButton(new TMP_DefaultControls.Resources());
             buttonGo.name = "RestartButton";
