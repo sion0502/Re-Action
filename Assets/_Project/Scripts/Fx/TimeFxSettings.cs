@@ -22,19 +22,24 @@ namespace ReAction.Fx
         public float DeathFlashSeconds = 0.5f;
 
         [Header("되감기 (VHS)")]
-        [Range(0f, 1f)] public float RewindVhs = 1f;
+        [Range(0f, 1f)] public float RewindVhs = 0.6f;
         [Range(0f, 1f)] public float RewindChromatic = 0.5f;
         [Range(-100f, 0f)] public float RewindSaturation = -45f;
-        [Range(0f, 1f)] public float RewindGrain = 0.12f;
+        [Range(0f, 1f)] public float RewindGrain = 0.05f;
 
         [Header("잔상")]
         [Tooltip("실행 중 움직임을 기억해 두는 간격 (초). 계획에 들어가는 순간 이 궤적이 잔상으로 남는다")]
         public float HistoryInterval = 0.035f;
         public int HistoryGhosts = 6;
-        public float HistoryGhostSeconds = 1.4f;
+        [Tooltip("궤적 잔상 중 가장 오래된 것이 사라지기까지 (초). 뒤의 것일수록 HistoryStaggerSeconds씩 더 오래 남는다")]
+        public float HistoryGhostSeconds = 2f;
+        [Tooltip("궤적 잔상이 오래된 것부터 하나씩 사라지는 간격 (초)")]
+        public float HistoryStaggerSeconds = 0.4f;
         [Tooltip("계획 중 현재 자세에서 잔상이 피어나는 간격 / 수명 (초)")]
-        public float PlanningGhostInterval = 0.22f;
-        public float PlanningGhostSeconds = 1.1f;
+        public float PlanningGhostInterval = 0.3f;
+        public float PlanningGhostSeconds = 2.5f;
+        [Tooltip("잔상이 수명의 이 비율까지는 진하게 유지되다가 그 뒤로 서서히 사라진다")]
+        [Range(0f, 0.95f)] public float GhostHoldFraction = 0.4f;
         [Tooltip("되감기 중 잔상 간격 / 수명 (초)")]
         public float RewindGhostInterval = 0.04f;
         public float RewindGhostSeconds = 0.3f;

@@ -14,7 +14,7 @@ namespace ReAction.Fx
     public sealed class AfterimageTrail : MonoBehaviour
     {
         private const int PixelsPerUnit = 32;
-        private const int PoolSize = 16;
+        private const int PoolSize = 24;
         private const float MinMoveForHistory = 0.01f;
 
         private static readonly Color RedTint = new Color(1f, 0.25f, 0.25f, 1f);
@@ -89,7 +89,7 @@ namespace ReAction.Fx
                     break;
             }
 
-            UpdateGhosts(dt, settings.GhostSplitPixels);
+            UpdateGhosts(dt, settings.GhostSplitPixels, settings.GhostHoldFraction);
         }
 
         private void RecordHistory(TimeFxSettings settings)
@@ -103,15 +103,19 @@ namespace ReAction.Fx
             while (_history.Count > settings.HistoryGhosts) _history.Dequeue();
         }
 
-        /// <summary>계획으로 들어가는 순간: 방금까지의 움직임 궤적이 얼어붙은 잔상으로 남는다.</summary>
+        /// <summary>
+        /// 계획으로 들어가는 순간: 방금까지의 움직임 궤적이 얼어붙은 잔상으로 남는다.
+        /// 가장 오래된 잔상부터 하나씩 차례로 사라지도록 수명을 조금씩 늘려 준다.
+        /// </summary>
         private void EmitHistory(TimeFxSettings settings)
         {
             int i = 0;
             int count = _history.Count;
             foreach (var sample in _history)
             {
-                float recency = (i + 1f) / count; // 최근일수록 진하다
-                Spawn(sample, settings.HistoryGhostSeconds, settings.GhostAlpha * recency);
+                float recency = (i + 1f) / count; // 최근일수록 조금 더 진하다
+                float life = settings.HistoryGhostSeconds + i * settings.HistoryStaggerSeconds;
+                Spawn(sample, life, settings.GhostAlpha * Mathf.Lerp(0.6f, 1f, recency));
                 i++;
             }
             _history.Clear();
@@ -146,7 +150,7 @@ namespace ReAction.Fx
             ghost.Cyan.sortingOrder = _source.sortingOrder - 2;
         }
 
-        private void UpdateGhosts(float dt, int splitPixels)
+        private void UpdateGhosts(float dt, int splitPixels, float holdFraction)
         {
             foreach (var ghost in _pool)
             {
@@ -160,7 +164,9 @@ namespace ReAction.Fx
                     continue;
                 }
 
-                float alpha = ghost.StartAlpha * (1f - t);
+                // 수명 앞부분은 진하게 유지하고, 그 뒤로 서서히 사라진다
+                float fade = t <= holdFraction ? 0f : (t - holdFraction) / (1f - holdFraction);
+                float alpha = ghost.StartAlpha * (1f - fade);
                 // 빨강/청록이 시간이 지날수록 정수 픽셀 단위로 벌어진다 (픽셀 아트가 번지지 않게)
                 float split = Mathf.Round(t * splitPixels + 1f) / PixelsPerUnit;
                 ghost.Red.transform.localPosition = new Vector3(-split, 0f, 0f);

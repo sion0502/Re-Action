@@ -21,15 +21,17 @@ MonoBehaviour:
   DeathChromatic: 0.8
   DeathVhs: 0.35
   DeathFlashSeconds: 0.5
-  RewindVhs: 1
+  RewindVhs: 0.6
   RewindChromatic: 0.5
   RewindSaturation: -45
-  RewindGrain: 0.12
+  RewindGrain: 0.05
   HistoryInterval: 0.035
   HistoryGhosts: 6
-  HistoryGhostSeconds: 1.4
-  PlanningGhostInterval: 0.22
-  PlanningGhostSeconds: 1.1
+  HistoryGhostSeconds: 2
+  HistoryStaggerSeconds: 0.4
+  PlanningGhostInterval: 0.3
+  PlanningGhostSeconds: 2.5
+  GhostHoldFraction: 0.4
   RewindGhostInterval: 0.04
   RewindGhostSeconds: 0.3
   GhostAlpha: 0.4

@@ -27,7 +27,7 @@ namespace ReAction.Core
         [SerializeField] private RewindPlayer _rewindPlayer;
 
         [Tooltip("계획(프롬프트 입력) 중 시간 배율. 0이면 완전 정지")]
-        [SerializeField, Range(0f, 0.2f)] private float _planningTimeScale = 0.03f;
+        [SerializeField, Range(0f, 0.2f)] private float _planningTimeScale = 0.01f;
 
         [Tooltip("사망 후 다시 시작 버튼을 누를 수 있게 되기까지의 시간 (초, 사망 연출이 보이도록)")]
         [SerializeField] private float _deathPauseSeconds = 0.6f;
