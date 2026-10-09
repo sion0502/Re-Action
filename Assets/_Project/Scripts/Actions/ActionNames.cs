@@ -74,8 +74,28 @@ namespace ReAction.Actions
             }
 
             string direction = Get(request.Direction);
-            return direction.Length == 0 ? Get(request.Type) : $"{direction} {Get(request.Type)}";
+            string amount = DescribeAmount(request);
+            string name = Get(request.Type);
+            if (amount.Length > 0) name = $"{amount} {name}";
+            return direction.Length == 0 ? name : $"{direction} {name}";
         }
+
+        /// <summary>예: "3초 동안", "2칸", "막힐 때까지"</summary>
+        public static string DescribeAmount(ActionRequest request)
+        {
+            switch (request.Unit)
+            {
+                case AmountUnit.Seconds: return $"{FormatNumber(request.Amount)}초 동안";
+                case AmountUnit.Units: return $"{FormatNumber(request.Amount)}칸";
+                case AmountUnit.UntilBlocked: return "막힐 때까지";
+                default: return "";
+            }
+        }
+
+        private static string FormatNumber(float value) =>
+            System.Math.Abs(value - System.Math.Round(value)) < 0.01f
+                ? ((int)System.Math.Round(value)).ToString()
+                : value.ToString("0.#", System.Globalization.CultureInfo.InvariantCulture);
 
         /// <summary>
         /// 계획 요약. 제한에 세는 행동만 번호를 붙인다.

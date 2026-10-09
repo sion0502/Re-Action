@@ -84,6 +84,19 @@ namespace ReAction.Tests
         }
 
         [Test]
+        public void TooLongDuration_Rejected()
+        {
+            var r = Validate(new ActionRequest(ActionType.Run, Direction.None, null, 9f, AmountUnit.Seconds));
+            Assert.That(r.FirstError, Does.Contain("5초"));
+        }
+
+        [Test]
+        public void ReasonableDuration_Valid()
+        {
+            Assert.That(Validate(new ActionRequest(ActionType.Wait, Direction.None, null, 2f, AmountUnit.Seconds)).IsValid, Is.True);
+        }
+
+        [Test]
         public void Empty_Rejected()
         {
             Assert.That(Validate().IsValid, Is.False);

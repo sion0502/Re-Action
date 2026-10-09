@@ -32,6 +32,26 @@ namespace ReAction.Interpretation
         public List<Pattern<Direction>> Directions { get; } = new List<Pattern<Direction>>();
         public List<Regex> Ignore { get; } = new List<Regex>();
 
+        // 수식어: "3초 동안", "두 칸", "두 번", "벽까지", "잠깐", "천천히", "빨리"
+        public Regex Amount { get; private set; }
+        public Dictionary<string, float> NumberWords { get; } = new Dictionary<string, float>();
+        public HashSet<string> SecondUnits { get; } = new HashSet<string>();
+        public HashSet<string> DistanceUnits { get; } = new HashSet<string>();
+        public HashSet<string> RepeatUnits { get; } = new HashSet<string>();
+        public List<Regex> UntilBlocked { get; } = new List<Regex>();
+        public List<Regex> Brief { get; } = new List<Regex>();
+        public float BriefSeconds { get; private set; } = 0.5f;
+        public List<Regex> Slow { get; } = new List<Regex>();
+        public List<Regex> Fast { get; } = new List<Regex>();
+
+        /// <summary>"3", "1.5", "세" 같은 수 표현을 숫자로. 모르면 null.</summary>
+        public float? ParseNumber(string text)
+        {
+            if (float.TryParse(text, System.Globalization.NumberStyles.Float,
+                    System.Globalization.CultureInfo.InvariantCulture, out float value)) return value;
+            return NumberWords.TryGetValue(text, out value) ? value : (float?)null;
+        }
+
         public static MockKeywordTable FromJson(string json)
         {
             var data = JsonUtility.FromJson<Data>(json) ?? throw new ArgumentException("Invalid keyword json");
@@ -56,7 +76,35 @@ namespace ReAction.Interpretation
             foreach (var keyword in data.ignore ?? Array.Empty<string>())
                 table.Ignore.Add(Compile(keyword));
 
+            foreach (var n in data.numberWords ?? Array.Empty<NumberWord>()) table.NumberWords[n.word] = n.value;
+            foreach (var u in data.secondUnits ?? Array.Empty<string>()) table.SecondUnits.Add(u);
+            foreach (var u in data.distanceUnits ?? Array.Empty<string>()) table.DistanceUnits.Add(u);
+            foreach (var u in data.repeatUnits ?? Array.Empty<string>()) table.RepeatUnits.Add(u);
+            table.Amount = CompileAmount(table);
+            AddAll(table.UntilBlocked, data.untilBlocked);
+            AddAll(table.Brief, data.brief);
+            AddAll(table.Slow, data.slow);
+            AddAll(table.Fast, data.fast);
+            if (data.briefSeconds > 0f) table.BriefSeconds = data.briefSeconds;
+
             return table;
+        }
+
+        private static void AddAll(List<Regex> target, string[] keywords)
+        {
+            foreach (var keyword in keywords ?? Array.Empty<string>()) target.Add(Compile(keyword));
+        }
+
+        /// <summary>(수)(단위)[ 동안|간] — 수는 숫자 또는 한국어 수사, 긴 단어부터 시도한다.</summary>
+        private static Regex CompileAmount(MockKeywordTable table)
+        {
+            var numbers = table.NumberWords.Keys.OrderByDescending(w => w.Length).Select(Regex.Escape);
+            var units = table.SecondUnits.Concat(table.DistanceUnits).Concat(table.RepeatUnits)
+                .OrderByDescending(u => u.Length).Select(Regex.Escape).ToList();
+            if (units.Count == 0) return null;
+            string number = $@"(?<num>\d+(?:\.\d+)?|{string.Join("|", numbers)})";
+            return new Regex($@"{number}\s*(?<unit>{string.Join("|", units)})(?:\s*(?:동안|간))?",
+                RegexOptions.CultureInvariant);
         }
 
         private static Regex Compile(string keyword)
@@ -72,6 +120,22 @@ namespace ReAction.Interpretation
             public ActionEntry[] actions;
             public DirectionEntry[] directions;
             public string[] ignore;
+            public NumberWord[] numberWords;
+            public string[] secondUnits;
+            public string[] distanceUnits;
+            public string[] repeatUnits;
+            public string[] untilBlocked;
+            public string[] brief;
+            public float briefSeconds;
+            public string[] slow;
+            public string[] fast;
+        }
+
+        [Serializable]
+        private sealed class NumberWord
+        {
+            public string word;
+            public float value;
         }
 
         [Serializable]

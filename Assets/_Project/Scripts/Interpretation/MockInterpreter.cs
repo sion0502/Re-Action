@@ -4,6 +4,7 @@ using System.Threading;
 using System.Threading.Tasks;
 using ReAction.Actions;
 using ReAction.Stage;
+using UnityEngine;
 
 namespace ReAction.Interpretation
 {
@@ -29,13 +30,19 @@ namespace ReAction.Interpretation
             string text = request.Prompt ?? "";
 
             var actions = SelectLongestNonOverlapping(FindAll(text, _table.Actions));
-            var blocked = actions.Select(m => (m.Start, m.End)).ToList();
+            var actionRanges = actions.Select(m => (m.Start, m.End)).ToList();
+            var modifiers = SelectLongestNonOverlapping(FindModifiers(text).Where(m => !Overlaps(m, actionRanges)));
+
+            var blocked = new List<(int Start, int End)>(actionRanges);
+            blocked.AddRange(modifiers.Select(m => (m.Start, m.End)));
             blocked.AddRange(FindIgnored(text));
             var directions = SelectLongestNonOverlapping(
                 FindAll(text, _table.Directions).Where(d => !Overlaps(d, blocked)));
 
             var requests = actions.Select(m => new ActionRequest(m.Value)).ToList();
             AssignDirections(actions, directions, requests);
+            var repeats = ApplyModifiers(actions, modifiers, requests);
+            requests = ExpandRepeats(requests, repeats);
             AssignTargets(request, requests);
 
             result.Actions = requests;
@@ -94,23 +101,144 @@ namespace ReAction.Interpretation
             ranges.Any(r => m.Start < r.End && r.Start < m.End);
 
         /// <summary>
-        /// 방향어는 바로 뒤에 오는 첫 행동에 붙는다 ("왼쪽으로 달려", "앞구르기").
-        /// 뒤에 행동이 없으면 앞쪽에서 가장 가까운, 방향이 없는 행동에 붙인다.
+        /// 수식어(방향·수치·반복·속도)가 붙을 행동을 고른다: 바로 뒤에 오는 첫 행동 ("왼쪽으로 달려", "3초 동안 달려").
+        /// 뒤에 행동이 없거나 이미 같은 수식어가 있으면, 수식어 앞쪽에서 가장 가까운 받을 수 있는 행동 ("달려 3초 동안").
         /// </summary>
+        private static int FindAttachIndex(List<Match<ActionType>> actions, List<ActionRequest> requests,
+            int modifierStart, int modifierEnd, System.Func<ActionRequest, bool> canTake)
+        {
+            int next = actions.FindIndex(a => a.Start >= modifierEnd);
+            if (next >= 0 && canTake(requests[next])) return next;
+            for (int i = actions.Count - 1; i >= 0; i--)
+            {
+                if (actions[i].End <= modifierStart && canTake(requests[i])) return i;
+            }
+            return -1;
+        }
+
         private static void AssignDirections(List<Match<ActionType>> actions, List<Match<Direction>> directions,
             List<ActionRequest> requests)
         {
             foreach (var d in directions)
             {
-                int index = actions.FindIndex(a => a.Start >= d.End);
-                if (index < 0 || requests[index].Direction != Direction.None)
-                    index = requests.FindLastIndex(r => r.Direction == Direction.None);
+                int index = FindAttachIndex(actions, requests, d.Start, d.End, r => r.Direction == Direction.None);
                 if (index < 0) continue;
-
                 var r = requests[index];
                 r.Direction = d.Value;
                 requests[index] = r;
             }
+        }
+
+        private enum ModifierKind
+        {
+            Amount,
+            Repeat,
+            Slow,
+            Fast,
+        }
+
+        private readonly struct Modifier
+        {
+            public Modifier(ModifierKind kind, float value = 0f, AmountUnit unit = AmountUnit.None)
+            {
+                Kind = kind;
+                Value = value;
+                Unit = unit;
+            }
+
+            public ModifierKind Kind { get; }
+            public float Value { get; }
+            public AmountUnit Unit { get; }
+        }
+
+        private IEnumerable<Match<Modifier>> FindModifiers(string text)
+        {
+            if (_table.Amount != null)
+            {
+                foreach (System.Text.RegularExpressions.Match m in _table.Amount.Matches(text))
+                {
+                    float? value = _table.ParseNumber(m.Groups["num"].Value);
+                    if (!value.HasValue) continue;
+                    string unit = m.Groups["unit"].Value;
+                    Modifier modifier;
+                    if (_table.SecondUnits.Contains(unit)) modifier = new Modifier(ModifierKind.Amount, value.Value, AmountUnit.Seconds);
+                    else if (_table.DistanceUnits.Contains(unit)) modifier = new Modifier(ModifierKind.Amount, value.Value, AmountUnit.Units);
+                    else modifier = new Modifier(ModifierKind.Repeat, value.Value);
+                    yield return new Match<Modifier>(m.Index, m.Length, modifier);
+                }
+            }
+
+            foreach (var m in FindKeywords(text, _table.UntilBlocked))
+                yield return new Match<Modifier>(m.Start, m.End - m.Start, new Modifier(ModifierKind.Amount, 0f, AmountUnit.UntilBlocked));
+            foreach (var m in FindKeywords(text, _table.Brief))
+                yield return new Match<Modifier>(m.Start, m.End - m.Start, new Modifier(ModifierKind.Amount, _table.BriefSeconds, AmountUnit.Seconds));
+            foreach (var m in FindKeywords(text, _table.Slow))
+                yield return new Match<Modifier>(m.Start, m.End - m.Start, new Modifier(ModifierKind.Slow));
+            foreach (var m in FindKeywords(text, _table.Fast))
+                yield return new Match<Modifier>(m.Start, m.End - m.Start, new Modifier(ModifierKind.Fast));
+        }
+
+        private static IEnumerable<(int Start, int End)> FindKeywords(string text, List<System.Text.RegularExpressions.Regex> patterns)
+        {
+            foreach (var regex in patterns)
+            {
+                foreach (System.Text.RegularExpressions.Match m in regex.Matches(text))
+                    yield return (m.Index, m.Index + m.Length);
+            }
+        }
+
+        // 반복은 행동 수에 그대로 센다. 제한(3개) 초과를 알려줄 수 있을 만큼만 펼친다.
+        private const int MaxRepeat = 5;
+
+        /// <summary>수치·속도 수식어를 행동에 적용하고, 행동별 반복 횟수를 돌려준다.</summary>
+        private static int[] ApplyModifiers(List<Match<ActionType>> actions, List<Match<Modifier>> modifiers,
+            List<ActionRequest> requests)
+        {
+            var repeats = Enumerable.Repeat(1, requests.Count).ToArray();
+            foreach (var m in modifiers)
+            {
+                var mod = m.Value;
+                switch (mod.Kind)
+                {
+                    case ModifierKind.Amount:
+                    {
+                        int i = FindAttachIndex(actions, requests, m.Start, m.End, r => !r.HasAmount);
+                        if (i < 0) break;
+                        var r = requests[i];
+                        r.Amount = mod.Value;
+                        r.Unit = mod.Unit;
+                        requests[i] = r;
+                        break;
+                    }
+                    case ModifierKind.Repeat:
+                    {
+                        int i = FindAttachIndex(actions, requests, m.Start, m.End, r => true);
+                        if (i >= 0) repeats[i] = Mathf.Clamp(Mathf.RoundToInt(mod.Value), 1, MaxRepeat);
+                        break;
+                    }
+                    case ModifierKind.Slow:
+                    case ModifierKind.Fast:
+                    {
+                        int i = FindAttachIndex(actions, requests, m.Start, m.End, r => IsMove(r.Type));
+                        if (i < 0) break;
+                        var r = requests[i];
+                        r.Type = mod.Kind == ModifierKind.Slow ? ActionType.Walk : ActionType.Sprint;
+                        requests[i] = r;
+                        break;
+                    }
+                }
+            }
+            return repeats;
+        }
+
+        private static List<ActionRequest> ExpandRepeats(List<ActionRequest> requests, int[] repeats)
+        {
+            var expanded = new List<ActionRequest>();
+            for (int i = 0; i < requests.Count; i++)
+            {
+                for (int n = 0; n < repeats[i]; n++) expanded.Add(requests[i]);
+            }
+            return expanded;
         }
 
         private static void AssignTargets(InterpretRequest request, List<ActionRequest> requests)

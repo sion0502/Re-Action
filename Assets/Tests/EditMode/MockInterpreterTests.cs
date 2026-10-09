@@ -114,6 +114,84 @@ namespace ReAction.Tests
         }
 
         [Test]
+        public void SecondsAmount_AttachesToFollowingAction()
+        {
+            var r = Interpret("3초 동안 달려");
+
+            Assert.That(Types(r), Is.EqualTo(new[] { ActionType.Run }));
+            Assert.That(r.Actions[0].Unit, Is.EqualTo(AmountUnit.Seconds));
+            Assert.That(r.Actions[0].Amount, Is.EqualTo(3f));
+        }
+
+        [Test]
+        public void AmountAfterAction_AttachesToPreviousAction()
+        {
+            var r = Interpret("오른쪽으로 달려 1.5초간");
+
+            Assert.That(r.Actions[0].Unit, Is.EqualTo(AmountUnit.Seconds));
+            Assert.That(r.Actions[0].Amount, Is.EqualTo(1.5f));
+            Assert.That(r.Actions[0].Direction, Is.EqualTo(Direction.Right));
+        }
+
+        [Test]
+        public void KoreanNumberDistance()
+        {
+            var r = Interpret("왼쪽으로 두 칸 걸어");
+
+            Assert.That(Types(r), Is.EqualTo(new[] { ActionType.Walk }));
+            Assert.That(r.Actions[0].Unit, Is.EqualTo(AmountUnit.Units));
+            Assert.That(r.Actions[0].Amount, Is.EqualTo(2f));
+            Assert.That(r.Actions[0].Direction, Is.EqualTo(Direction.Left));
+        }
+
+        [Test]
+        public void UntilBlockedAndBrief()
+        {
+            var r = Interpret("벽까지 달리고 잠깐 기다려");
+
+            Assert.That(Types(r), Is.EqualTo(new[] { ActionType.Run, ActionType.Wait }));
+            Assert.That(r.Actions[0].Unit, Is.EqualTo(AmountUnit.UntilBlocked));
+            Assert.That(r.Actions[1].Unit, Is.EqualTo(AmountUnit.Seconds));
+            Assert.That(r.Actions[1].Amount, Is.EqualTo(0.5f));
+        }
+
+        [Test]
+        public void Repeat_ExpandsAndCountsTowardLimit()
+        {
+            Assert.That(Types(Interpret("두 번 베어")), Is.EqualTo(new[] { ActionType.Slash, ActionType.Slash }));
+
+            var r = Interpret("달려서 세 번 베어");
+            Assert.That(r.Actions.Count, Is.EqualTo(4));
+            Assert.That(r.OverLimit, Is.True);
+        }
+
+        [Test]
+        public void SpeedWords_ChangeMoveType()
+        {
+            Assert.That(Types(Interpret("천천히 달려")), Is.EqualTo(new[] { ActionType.Walk }));
+            Assert.That(Types(Interpret("빨리 달려")), Is.EqualTo(new[] { ActionType.Sprint }));
+            Assert.That(Types(Interpret("최대한 빨리 달려")), Is.EqualTo(new[] { ActionType.Sprint }));
+        }
+
+        [Test]
+        public void NumberWordInsideActionKeyword_IsNotAnAmount()
+        {
+            // "문 열"의 "열"은 숫자 10이 아니다
+            var r = Interpret("문을 열고 들어가");
+            Assert.That(Types(r), Is.EqualTo(new[] { ActionType.OpenDoor, ActionType.Enter }));
+            Assert.That(r.Actions[0].HasAmount, Is.False);
+        }
+
+        [Test]
+        public void NewSynonyms()
+        {
+            Assert.That(Types(Interpret("앞으로 전진")), Is.EqualTo(new[] { ActionType.Run }));
+            Assert.That(Types(Interpret("후퇴해")), Is.EqualTo(new[] { ActionType.Backstep }));
+            Assert.That(Types(Interpret("위층으로 가")), Is.EqualTo(new[] { ActionType.ClimbLadder }));
+            Assert.That(Types(Interpret("적을 처치해")), Is.EqualTo(new[] { ActionType.Slash }));
+        }
+
+        [Test]
         public void UnknownPrompt_NoActionsWithNotes()
         {
             var r = Interpret("안녕하세요");

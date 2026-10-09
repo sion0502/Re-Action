@@ -19,6 +19,9 @@ namespace ReAction.Interpretation
     /// </summary>
     public sealed class ActionValidator
     {
+        public const float MaxSeconds = 5f;
+        public const float MaxUnits = 15f;
+
         private readonly ZoneGraph _graph;
         private readonly ZoneKnowledge _knowledge;
         private readonly HashSet<ActionType> _allowed;
@@ -65,6 +68,11 @@ namespace ReAction.Interpretation
         {
             if (action.Type == ActionType.None || !_allowed.Contains(action.Type))
                 return "아직 할 수 없는 행동이다";
+
+            if (action.Unit == AmountUnit.Seconds && (action.Amount <= 0f || action.Amount > MaxSeconds))
+                return $"시간은 {MaxSeconds}초까지만 지정할 수 있다";
+            if (action.Unit == AmountUnit.Units && (action.Amount <= 0f || action.Amount > MaxUnits))
+                return $"거리는 {MaxUnits}칸까지만 지정할 수 있다";
 
             var requiredKind = ActionTargeting.RequiredKind(action.Type);
             if (requiredKind.HasValue)
