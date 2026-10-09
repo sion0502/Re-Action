@@ -2,6 +2,7 @@ using ReAction.Core;
 using TMPro;
 using UnityEngine;
 using UnityEngine.InputSystem;
+using UnityEngine.UI;
 
 namespace ReAction.UI
 {
@@ -19,12 +20,18 @@ namespace ReAction.UI
         [SerializeField] private TMP_Text _message;
         [SerializeField] private TMP_Text _status;
 
+        [Header("Death")]
+        [SerializeField] private GameObject _deathPanel;
+        [SerializeField] private TMP_Text _deathText;
+        [SerializeField] private Button _restartButton;
+
         private bool _moveCaretToEnd;
 
         private void OnEnable()
         {
             _input.onSubmit.AddListener(OnSubmit);
             _input.onValueChanged.AddListener(OnValueChanged);
+            _restartButton.onClick.AddListener(OnRestartClicked);
             _planning.Changed += Refresh;
             _game.StateChanged += OnStateChanged;
         }
@@ -33,6 +40,7 @@ namespace ReAction.UI
         {
             _input.onSubmit.RemoveListener(OnSubmit);
             _input.onValueChanged.RemoveListener(OnValueChanged);
+            _restartButton.onClick.RemoveListener(OnRestartClicked);
             _planning.Changed -= Refresh;
             _game.StateChanged -= OnStateChanged;
         }
@@ -49,6 +57,7 @@ namespace ReAction.UI
             if (keyboard != null && keyboard.escapeKey.wasPressedThisFrame) _planning.ClearFeedback();
 
             KeepInputFocused();
+            UpdateDeathPanel(keyboard);
 
             _status.text = $"시도 #{_game.Attempt} · {StatusText()}";
         }
@@ -61,7 +70,7 @@ namespace ReAction.UI
                 case GameState.Planning:
                     return _selector.SelectedId != null ? "계획 중 · 목표 지정됨" : "계획 중 · 목표를 클릭하세요";
                 case GameState.Executing: return "실행 중";
-                case GameState.Dead: return $"죽었다 - {_game.LastDeathCause}";
+                case GameState.Dead: return "죽었다";
                 case GameState.Rewind: return "되감는 중 (클릭: 건너뛰기)";
                 default: return "";
             }
@@ -86,6 +95,22 @@ namespace ReAction.UI
                 _moveCaretToEnd = false;
             }
         }
+
+        /// <summary>죽으면 원인과 다시 시작 버튼을 띄운다. 사망 연출이 끝나야 누를 수 있다 (Enter도 가능).</summary>
+        private void UpdateDeathPanel(Keyboard keyboard)
+        {
+            bool dead = _game.State == GameState.Dead;
+            if (_deathPanel.activeSelf != dead) _deathPanel.SetActive(dead);
+            if (!dead) return;
+
+            _deathText.text = _game.LastDeathCause;
+            _restartButton.interactable = _game.CanRestart;
+            if (_game.CanRestart && keyboard != null &&
+                (keyboard.enterKey.wasPressedThisFrame || keyboard.numpadEnterKey.wasPressedThisFrame))
+                _game.RequestRestart();
+        }
+
+        private void OnRestartClicked() => _game.RequestRestart();
 
         private void OnSubmit(string text)
         {

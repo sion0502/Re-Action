@@ -19,6 +19,7 @@ namespace ReAction.Replay
         private Action _onFinished;
         private float _elapsed;
         private float _duration;
+        private int _startFrame;
 
         public bool IsPlaying => _recorder != null;
 
@@ -33,6 +34,7 @@ namespace ReAction.Replay
 
             _recorder = recorder;
             _elapsed = 0f;
+            _startFrame = Time.frameCount;
             float natural = recorder.FrameCount * DeterministicClock.TickDuration;
             _duration = Mathf.Clamp(natural, _minSeconds, _maxSeconds);
             foreach (var track in recorder.Tracks) track.Animator.enabled = false;
@@ -43,7 +45,8 @@ namespace ReAction.Replay
         {
             if (_recorder == null) return;
 
-            if (SkipPressed())
+            // 시작한 프레임의 입력(다시 시작에 쓴 Enter 등)으로 바로 건너뛰지 않게 한다
+            if (Time.frameCount > _startFrame && SkipPressed())
             {
                 Finish();
                 return;

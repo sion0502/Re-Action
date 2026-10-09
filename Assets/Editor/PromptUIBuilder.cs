@@ -90,6 +90,8 @@ namespace ReAction.Editor
             Place(status.rectTransform, new Vector2(0f, 1f), new Vector2(0f, 1f), new Vector2(0f, 1f),
                 new Vector2(8f, -6f), new Vector2(300f, 14f));
 
+            var (deathPanel, deathText, restartButton) = CreateDeathPanel(root, font);
+
             var ui = canvasGo.AddComponent<PromptUI>();
             SetRef(ui, "_game", game);
             SetRef(ui, "_planning", planning);
@@ -98,7 +100,47 @@ namespace ReAction.Editor
             SetRef(ui, "_preview", preview);
             SetRef(ui, "_message", message);
             SetRef(ui, "_status", status);
+            SetRef(ui, "_deathPanel", deathPanel);
+            SetRef(ui, "_deathText", deathText);
+            SetRef(ui, "_restartButton", restartButton);
             return ui;
+        }
+
+        /// <summary>사망 시 가운데에 뜨는 패널: 사망 원인 + 다시 시작 버튼. 평소엔 꺼져 있다.</summary>
+        private static (GameObject panel, TextMeshProUGUI cause, Button button) CreateDeathPanel(Transform root,
+            TMP_FontAsset font)
+        {
+            var panel = CreateRect("DeathPanel", root, new Vector2(0.5f, 0.5f), new Vector2(0.5f, 0.5f),
+                new Vector2(0.5f, 0.5f), new Vector2(0f, 20f), new Vector2(180f, 64f));
+            panel.gameObject.AddComponent<Image>().color = new Color(0f, 0f, 0f, 0.85f);
+
+            var cause = CreateText("Cause", panel, font, MessageColor, TextAlignmentOptions.Center);
+            Place(cause.rectTransform, new Vector2(0f, 1f), new Vector2(1f, 1f), new Vector2(0.5f, 1f),
+                new Vector2(0f, -8f), new Vector2(-12f, 16f));
+
+            var buttonGo = TMP_DefaultControls.CreateButton(new TMP_DefaultControls.Resources());
+            buttonGo.name = "RestartButton";
+            buttonGo.transform.SetParent(panel, false);
+            Place((RectTransform)buttonGo.transform, new Vector2(0.5f, 0f), new Vector2(0.5f, 0f), new Vector2(0.5f, 0f),
+                new Vector2(0f, 8f), new Vector2(110f, 20f));
+            var button = buttonGo.GetComponent<Button>();
+            var colors = button.colors;
+            colors.normalColor = FieldColor;
+            colors.highlightedColor = new Color(0.25f, 0.25f, 0.3f, 1f);
+            colors.pressedColor = new Color(0.35f, 0.35f, 0.4f, 1f);
+            colors.selectedColor = FieldColor;
+            colors.disabledColor = new Color(0.12f, 0.12f, 0.15f, 0.4f);
+            button.colors = colors;
+
+            var label = buttonGo.GetComponentInChildren<TextMeshProUGUI>();
+            label.font = font;
+            label.fontSize = FontSize;
+            label.color = TextColor;
+            label.extraPadding = false;
+            label.text = "다시 시작 (Enter)";
+
+            panel.gameObject.SetActive(false);
+            return (panel.gameObject, cause, button);
         }
 
         private static TMP_InputField CreateInputField(Transform bar, TMP_FontAsset font)

@@ -11,7 +11,7 @@ namespace ReAction.Core
 {
     /// <summary>
     /// 게임 루프의 중심. Planning 중에는 세계를 멈추고, Executing 중에만 고정 틱으로 월드를 진행한다.
-    /// 플레이어가 죽으면 Dead → Rewind(되감기 연출) → Reset(월드 초기화, 발견 정보는 유지) → Planning.
+    /// 플레이어가 죽으면 Dead(다시 시작 버튼 대기) → Rewind(되감기 연출) → Reset(월드 초기화, 발견 정보는 유지) → Planning.
     /// </summary>
     public sealed class GameController : MonoBehaviour
     {
@@ -25,7 +25,7 @@ namespace ReAction.Core
         [SerializeField] private List<MeleeEnemy> _enemies = new List<MeleeEnemy>();
         [SerializeField] private RewindPlayer _rewindPlayer;
 
-        [Tooltip("사망 후 되감기 시작까지 멈춰 있는 시간 (초, 연출)")]
+        [Tooltip("사망 후 다시 시작 버튼을 누를 수 있게 되기까지의 시간 (초, 사망 연출이 보이도록)")]
         [SerializeField] private float _deathPauseSeconds = 0.6f;
 
         private readonly GameStateMachine _states = new GameStateMachine();
@@ -49,6 +49,9 @@ namespace ReAction.Core
 
         /// <summary>마지막 사망 원인 (리셋 후에도 다음 사망 전까지 유지).</summary>
         public string LastDeathCause { get; private set; } = "";
+
+        /// <summary>사망 연출이 끝나 다시 시작할 수 있는 상태인지.</summary>
+        public bool CanRestart => _states.Current == GameState.Dead && _deadTimer <= 0f;
 
         /// <summary>마지막 실행 결과를 사람이 읽을 수 있게 요약한 문자열.</summary>
         public string LastResult { get; private set; } = "";
@@ -158,6 +161,16 @@ namespace ReAction.Core
             return true;
         }
 
+        /// <summary>
+        /// 사망 후 "다시 시작". 되감기 연출 → 월드 리셋 → Planning. 사망 연출 중에는 무시한다.
+        /// </summary>
+        public bool RequestRestart()
+        {
+            if (!CanRestart || !_states.TryTransition(GameState.Rewind)) return false;
+            _rewindPlayer.Play(_recorder, OnRewindFinished);
+            return true;
+        }
+
         /// <summary>되감기 연출을 즉시 끝낸다 (검증용).</summary>
         public void SkipRewind() => _rewindPlayer.Skip();
 
@@ -172,9 +185,8 @@ namespace ReAction.Core
                     break;
 
                 case GameState.Dead:
-                    _deadTimer -= Time.deltaTime;
-                    if (_deadTimer <= 0f && _states.TryTransition(GameState.Rewind))
-                        _rewindPlayer.Play(_recorder, OnRewindFinished);
+                    // 자동으로 넘어가지 않는다. 연출 시간이 지나면 다시 시작 버튼이 활성화된다.
+                    if (_deadTimer > 0f) _deadTimer -= Time.deltaTime;
                     break;
             }
         }
