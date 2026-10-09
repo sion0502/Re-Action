@@ -1,6 +1,7 @@
 using ReAction.Core;
 using ReAction.Stage;
 using UnityEngine;
+using UnityEngine.EventSystems;
 using UnityEngine.InputSystem;
 
 namespace ReAction.UI
@@ -60,7 +61,8 @@ namespace ReAction.UI
             }
 
             Vector2 screen = mouse.position.ReadValue();
-            if (_panel != null && _panel.ContainsScreenPoint(screen))
+            bool overUi = EventSystem.current != null && EventSystem.current.IsPointerOverGameObject();
+            if (overUi || (_panel != null && _panel.ContainsScreenPoint(screen)))
             {
                 SetHovered(null);
                 return;

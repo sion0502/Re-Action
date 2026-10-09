@@ -2,7 +2,10 @@
     "name": "ReAction.Editor",
     "rootNamespace": "ReAction.Editor",
     "references": [
-        "ReAction.Runtime"
+        "ReAction.Runtime",
+        "Unity.TextMeshPro",
+        "UnityEngine.UI",
+        "Unity.InputSystem"
     ],
     "includePlatforms": [
         "Editor"

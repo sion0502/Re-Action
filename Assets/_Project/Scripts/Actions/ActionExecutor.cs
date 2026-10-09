@@ -17,6 +17,9 @@ namespace ReAction.Actions
         public PlayerAction Current { get; private set; }
         public bool IsRunning => Current != null || _pending.Count > 0;
 
+        /// <summary>마지막 실행에서 앞 행동 실패로 취소된 행동 수.</summary>
+        public int CancelledCount { get; private set; }
+
         /// <summary>(행동, 순번 0부터)</summary>
         public event Action<PlayerAction, int> ActionStarted;
         public event Action<PlayerAction, int> ActionFinished;
@@ -36,6 +39,7 @@ namespace ReAction.Actions
             foreach (var a in actions) _pending.Enqueue(a);
             _index = -1;
             _anyFailed = false;
+            CancelledCount = 0;
             return true;
         }
 
@@ -81,6 +85,7 @@ namespace ReAction.Actions
             if (finished.Status == ActionStatus.Failed)
             {
                 _anyFailed = true;
+                CancelledCount = _pending.Count;
                 _pending.Clear();
             }
 

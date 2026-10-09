@@ -26,6 +26,7 @@ namespace ReAction.Editor
         private const string ActionsFolder = Root + "/ScriptableObjects/Actions";
         private const string CatalogPath = Root + "/ScriptableObjects/ActionCatalog.asset";
         private const string TestStagePath = Root + "/ScriptableObjects/Stages/TestStage.asset";
+        private const string MockKeywordsPath = Root + "/Data/mock_keywords.json";
         private const string PlayerControllerPath = Root + "/Art/Animations/Player.controller";
         private const string PlayerPrefabPath = Root + "/Prefabs/Player.prefab";
 
@@ -85,6 +86,14 @@ namespace ReAction.Editor
             SetRef(selector, "_camera", Camera.main);
             SetRef(selector, "_panel", panel);
             SetRef(selector, "_lineSprite", square);
+
+            var planning = controllerGo.AddComponent<PlanningController>();
+            SetRef(planning, "_game", game);
+            SetRef(planning, "_stage", stage);
+            SetRef(planning, "_selector", selector);
+            SetRef(planning, "_mockKeywords", AssetDatabase.LoadAssetAtPath<TextAsset>(MockKeywordsPath));
+
+            PromptUIBuilder.Build(gameRoot.transform, game, planning, selector, PromptUIBuilder.EnsureFontAsset());
 
             EditorSceneManager.MarkSceneDirty(scene);
             EditorSceneManager.SaveScene(scene);

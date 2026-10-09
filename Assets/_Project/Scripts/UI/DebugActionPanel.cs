@@ -7,7 +7,7 @@ using UnityEngine;
 namespace ReAction.UI
 {
     /// <summary>
-    /// 디버그용 패널. 프롬프트 대신 버튼으로 행동을 골라 실행한다 (M3에서 프롬프트 입력으로 대체).
+    /// 디버그용 패널 (F1). 프롬프트 대신 버튼으로 행동을 골라 바로 실행한다. 해석기·검증기를 거치지 않는다.
     /// 행동 개수 거부를 확인할 수 있도록 3개를 넘겨서도 담을 수 있다.
     /// </summary>
     public sealed class DebugActionPanel : MonoBehaviour
@@ -24,13 +24,20 @@ namespace ReAction.UI
         [SerializeField] private GameController _game;
         [SerializeField] private StageController _stage;
         [SerializeField] private ZoneSelector _selector;
-        [SerializeField] private bool _visible = true;
+        [Tooltip("F1로 켜고 끈다")]
+        [SerializeField] private bool _visible;
 
         private readonly List<ActionRequest> _queue = new List<ActionRequest>();
         private int _directionIndex;
         private string _message = "";
 
         private static float Scale => Screen.height / ReferenceHeight;
+
+        private void Update()
+        {
+            var keyboard = UnityEngine.InputSystem.Keyboard.current;
+            if (keyboard != null && keyboard.f1Key.wasPressedThisFrame) _visible = !_visible;
+        }
 
         /// <summary>화면 좌표(왼쪽 아래 원점)가 패널 위인지. 패널 위 클릭은 월드 클릭으로 처리하지 않는다.</summary>
         public bool ContainsScreenPoint(Vector2 screenPoint)

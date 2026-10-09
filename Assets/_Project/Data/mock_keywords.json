@@ -1,0 +1,49 @@
+{
+  "_comment": "MockInterpreter 키워드 사전. 키워드 안의 공백은 '조사(을/를/에 등) + 띄어쓰기'를 허용한다는 뜻. 같은 위치에서는 더 긴 키워드가 이긴다. type은 ActionType 이름.",
+  "actions": [
+    { "type": "KickDoor", "keywords": ["문 걷어차", "문 걷어 차", "문 발로 차", "문 박차", "문 차"] },
+    { "type": "OpenDoor", "keywords": ["문 열", "문 여"] },
+    { "type": "BreakDoor", "keywords": ["문 부수", "문 부숴", "문 박살", "문 깨"] },
+    { "type": "CrashWindow", "keywords": ["창문 깨", "창문 부수", "창문 부숴", "창문 박살", "창문 뚫", "유리 깨", "창 깨"] },
+    { "type": "VaultWindow", "keywords": ["창문 넘", "창문 뛰어넘", "창문 통과", "창문 너머"] },
+    { "type": "Enter", "keywords": ["들어가", "들어간", "들어와", "진입", "침투", "들어"] },
+    { "type": "WallClimb", "keywords": ["벽 타", "벽 올라", "벽 오르", "벽 기어오르", "벽 기어 오르", "외벽 타"] },
+    { "type": "ExteriorMove", "keywords": ["외벽 따라", "외벽 이동"] },
+    { "type": "ClimbLadder", "keywords": ["사다리"] },
+    { "type": "GrabLedge", "keywords": ["매달리", "매달려", "턱 잡"] },
+    { "type": "ClimbLedge", "keywords": ["턱 오르", "턱 올라"] },
+    { "type": "HangCeiling", "keywords": ["천장 매달"] },
+
+    { "type": "Run", "keywords": ["달리", "달려", "달린", "뛰어가", "뛰어 가", "질주"] },
+    { "type": "Sprint", "keywords": ["전력 질주", "전력으로 달", "최대한 빨리 달"] },
+    { "type": "Walk", "keywords": ["걸어", "걷기", "걷고", "걷는"] },
+    { "type": "Backstep", "keywords": ["물러나", "물러서", "뒷걸음", "백스텝"] },
+    { "type": "Jump", "keywords": ["점프", "뛰어올", "뛰어 올", "뛰어넘", "뛰어 넘", "도약"] },
+    { "type": "DoubleJump", "keywords": ["이단 점프", "이단점프", "더블 점프", "더블점프"] },
+    { "type": "Slide", "keywords": ["슬라이딩", "슬라이드", "미끄러"] },
+    { "type": "Roll", "keywords": ["구르", "굴러", "구른", "구를", "굴러서", "롤링"] },
+    { "type": "Backflip", "keywords": ["백플립", "공중제비", "뒤로 공중제비"] },
+    { "type": "Crouch", "keywords": ["웅크", "숙이", "숙여", "앉"] },
+
+    { "type": "Slash", "keywords": ["베어", "베고", "베기", "벤다", "베", "공격", "썰", "칼질", "내리쳐", "내려쳐"] },
+    { "type": "Stab", "keywords": ["찌르", "찔러"] },
+    { "type": "Kick", "keywords": ["걷어차", "걷어 차", "발차기", "발로 차", "차버"] },
+    { "type": "Shove", "keywords": ["밀치", "밀쳐", "밀어"] },
+    { "type": "JumpAttack", "keywords": ["점프 공격", "점프공격", "뛰어올라 베", "뛰어올라 공격", "점프해서 공격", "점프해서 베"] },
+    { "type": "RollAttack", "keywords": ["구르며 공격", "구르면서 공격", "굴러서 공격", "구르며 베", "구르면서 베"] },
+    { "type": "Disarm", "keywords": ["무기 빼앗", "무기 뺏", "총 빼앗", "총 뺏"] },
+    { "type": "Throw", "keywords": ["던지", "던져", "투척"] },
+
+    { "type": "PressButton", "keywords": ["버튼", "스위치"] },
+    { "type": "PickUp", "keywords": ["줍", "주워", "집어"] },
+    { "type": "UseExplosive", "keywords": ["폭탄", "폭발물", "수류탄"] },
+    { "type": "Wait", "keywords": ["기다리", "기다려", "기다린", "대기", "멈춰", "가만히", "잠깐 멈"] }
+  ],
+  "directions": [
+    { "direction": "Forward", "keywords": ["앞으로", "앞쪽", "전방", "앞"] },
+    { "direction": "Backward", "keywords": ["뒤로", "뒤쪽", "후방", "뒤"] },
+    { "direction": "Left", "keywords": ["왼쪽", "왼편", "좌측", "왼"] },
+    { "direction": "Right", "keywords": ["오른쪽", "오른편", "우측", "오른"] }
+  ],
+  "ignore": ["그 뒤", "그뒤", "뒤에", "후에", "다음에", "다음"]
+}

@@ -1,0 +1,72 @@
+using System.Collections.Generic;
+
+namespace ReAction.Actions
+{
+    /// <summary>
+    /// 플레이어에게 보여줄 행동·방향의 한국어 이름 (미리보기, 오류 메시지).
+    /// </summary>
+    public static class ActionNames
+    {
+        private static readonly Dictionary<ActionType, string> Names = new Dictionary<ActionType, string>
+        {
+            { ActionType.Walk, "걷기" },
+            { ActionType.Run, "달리기" },
+            { ActionType.Sprint, "전력 질주" },
+            { ActionType.Backstep, "뒤로 물러나기" },
+            { ActionType.Jump, "점프" },
+            { ActionType.DoubleJump, "이단 점프" },
+            { ActionType.Slide, "슬라이딩" },
+            { ActionType.Roll, "구르기" },
+            { ActionType.Backflip, "백플립" },
+            { ActionType.Crouch, "웅크리기" },
+            { ActionType.WallClimb, "벽 타기" },
+            { ActionType.WallJump, "벽 점프" },
+            { ActionType.GrabLedge, "턱 잡기" },
+            { ActionType.ClimbLedge, "턱 오르기" },
+            { ActionType.VaultWindow, "창문 넘기" },
+            { ActionType.CrashWindow, "창문 깨고 진입" },
+            { ActionType.ClimbLadder, "사다리 오르기" },
+            { ActionType.ExteriorMove, "외벽 이동" },
+            { ActionType.HangCeiling, "천장 매달리기" },
+            { ActionType.Slash, "베기" },
+            { ActionType.Stab, "찌르기" },
+            { ActionType.Kick, "발차기" },
+            { ActionType.Shove, "밀치기" },
+            { ActionType.JumpAttack, "점프 공격" },
+            { ActionType.RollAttack, "구르며 공격" },
+            { ActionType.Disarm, "무기 빼앗기" },
+            { ActionType.Throw, "던지기" },
+            { ActionType.OpenDoor, "문 열기" },
+            { ActionType.KickDoor, "문 걷어차기" },
+            { ActionType.BreakDoor, "문 부수기" },
+            { ActionType.Enter, "진입" },
+            { ActionType.PressButton, "버튼 누르기" },
+            { ActionType.PickUp, "줍기" },
+            { ActionType.ThrowObject, "물건 던지기" },
+            { ActionType.UseExplosive, "폭발물 사용" },
+            { ActionType.Wait, "대기" },
+        };
+
+        public static string Get(ActionType type) =>
+            Names.TryGetValue(type, out var name) ? name : type.ToString();
+
+        public static string Get(Direction direction)
+        {
+            switch (direction)
+            {
+                case Direction.Forward: return "앞으로";
+                case Direction.Backward: return "뒤로";
+                case Direction.Left: return "왼쪽으로";
+                case Direction.Right: return "오른쪽으로";
+                default: return "";
+            }
+        }
+
+        /// <summary>예: "앞으로 구르기", "문 걷어차기"</summary>
+        public static string Describe(ActionRequest request)
+        {
+            string direction = Get(request.Direction);
+            return direction.Length == 0 ? Get(request.Type) : $"{direction} {Get(request.Type)}";
+        }
+    }
+}

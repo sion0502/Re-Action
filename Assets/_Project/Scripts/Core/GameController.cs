@@ -35,6 +35,9 @@ namespace ReAction.Core
         /// <summary>마지막 실행 결과를 사람이 읽을 수 있게 요약한 문자열.</summary>
         public string LastResult { get; private set; } = "";
 
+        /// <summary>마지막 실행에서 실패한 행동이 있었는지.</summary>
+        public bool LastRunFailed { get; private set; }
+
         public event Action<GameState, GameState> StateChanged
         {
             add => _states.Changed += value;
@@ -57,6 +60,15 @@ namespace ReAction.Core
         private void Start()
         {
             _states.TryTransition(GameState.Planning);
+        }
+
+        /// <summary>Planning → Interpreting. 해석 중에는 다른 입력을 받지 않는다.</summary>
+        public bool TryBeginInterpreting() => _states.TryTransition(GameState.Interpreting);
+
+        /// <summary>Interpreting → Planning (해석 결과를 미리보기로 보여주거나 실패했을 때).</summary>
+        public void EndInterpreting()
+        {
+            if (_states.Current == GameState.Interpreting) _states.TryTransition(GameState.Planning);
         }
 
         /// <summary>
@@ -156,7 +168,8 @@ namespace ReAction.Core
 
         private void OnQueueFinished(bool allSucceeded)
         {
-            if (!allSucceeded) LastResult += "실패한 행동 뒤의 행동은 취소됨\n";
+            LastRunFailed = !allSucceeded;
+            if (_executor.CancelledCount > 0) LastResult += $"남은 행동 {_executor.CancelledCount}개는 취소됨\n";
             _settling = true;
             _settleTicks = 0;
             _groundedTicks = 0;

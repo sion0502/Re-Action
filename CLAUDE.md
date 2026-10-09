@@ -35,7 +35,7 @@
 | 엔진 | Unity 2022.3 LTS 이상 (또는 Unity 6), 2D (URP 2D 권장) |
 | 언어 | C# |
 | 입력 | Unity Input System (새 입력 시스템) |
-| UI | uGUI + TextMeshPro |
+| UI | uGUI + TextMeshPro. 한글 폰트는 Galmuri11 픽셀 폰트(SIL OFL, `Art/Fonts/`), TMP 래스터 모드 + 크기 11 + 캔버스 기준 640×360. 입력창 텍스트는 `extraPadding`을 꺼야 글자가 안 깨진다 |
 | JSON | `com.unity.nuget.newtonsoft-json` |
 | HTTP | `UnityWebRequest` + async/await (또는 UniTask 도입 시 문서에 기록) |
 | AI | **미정** → `IActionInterpreter` 인터페이스로 추상화, 구현체 교체 가능 |
@@ -180,7 +180,7 @@ public interface IActionInterpreter
 1. **`MockInterpreter` (필수, 먼저 구현)**
    - 한국어 키워드 기반 규칙 파서. 예: "걷어차" → `KICK_DOOR`, "구르" → `ROLL`, "베" / "공격" → `SLASH`, "벽을 타" → `WALL_CLIMB`, "창문" + "깨" → `CRASH_WINDOW`
    - 문장 내 등장 순서대로 행동 나열, 3개 초과 시 자르지 않고 `overLimit: true`로 반환.
-   - 키워드 사전은 ScriptableObject 또는 JSON으로 분리해 쉽게 늘릴 수 있게.
+   - 키워드 사전은 ScriptableObject 또는 JSON으로 분리해 쉽게 늘릴 수 있게. → `Assets/_Project/Data/mock_keywords.json`. 키워드 안의 공백은 "조사 + 띄어쓰기 허용", 같은 위치에서는 긴 키워드 우선, `ignore`는 방향어로 오인되는 시간 표현("뒤에" 등).
 2. **`LlmInterpreter` (나중에)**
    - 공급자별 어댑터 (`ClaudeProvider`, `OpenAIProvider` 등)를 `ILlmProvider`로 분리.
    - 시스템 프롬프트: 허용 ActionType만 사용, JSON만 출력, 인식한 행동은 개수와 상관없이 전부 나열(자르지 말 것 — 개수 판정은 게임 코드가 함), 불가능하면 빈 배열 + 이유.
