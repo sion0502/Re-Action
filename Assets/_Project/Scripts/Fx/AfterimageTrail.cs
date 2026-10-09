@@ -5,9 +5,9 @@ namespace ReAction.Fx
 {
     /// <summary>
     /// 스프라이트 잔상 (트레일·고스팅·색수차 잔상). 연출 전용.
-    /// - 실행 중: 최근 움직임을 기억만 해 두고, 계획으로 들어가는 순간 그 궤적을 잔상으로 남긴다.
-    /// - 계획 중: 현재 자세에서 잔상이 주기적으로 피어나며 빨강/청록으로 벌어지면서 사라진다.
-    /// 잔상은 프롬프트를 입력하는 계획 중에만 보인다. 계획을 벗어나는 순간(실행·사망·되감기) 모두 지운다.
+    /// 프롬프트를 입력하는 계획 중에 실제로 움직인 만큼만 잔상이 남는다 (가만히 있으면 잔상 없음).
+    /// 실행 중의 움직임은 잔상으로 남기지 않고, 계획을 벗어나는 순간(실행·사망·되감기) 잔상을 모두 지운다.
+    /// 지나간 자리에 남은 잔상은 빨강/청록으로 벌어지며, 먼저 생긴 것부터 사라진다.
     /// 잔상은 원본보다 바로 아래 그리기 순서를 써서, 안개(위)에 가려진 적의 잔상이 새어 나오지 않는다.
     /// </summary>
     [RequireComponent(typeof(SpriteRenderer))]
@@ -15,7 +15,6 @@ namespace ReAction.Fx
     {
         private const int PixelsPerUnit = 32;
         private const int PoolSize = 24;
-        private const float MinMoveForHistory = 0.01f;
 
         private static readonly Color RedTint = new Color(1f, 0.25f, 0.25f, 1f);
         private static readonly Color CyanTint = new Color(0.25f, 0.85f, 1f, 1f);
@@ -41,11 +40,9 @@ namespace ReAction.Fx
 
         private SpriteRenderer _source;
         private readonly List<Ghost> _pool = new List<Ghost>();
-        private readonly Queue<Sample> _history = new Queue<Sample>();
         private Transform _ghostRoot;
         private TimeFxMode _lastMode;
-        private float _timer;
-        private Vector3 _lastHistoryPosition;
+        private Sample _lastGhostPose;
 
         private void Awake()
         {
@@ -66,64 +63,30 @@ namespace ReAction.Fx
 
             var mode = TimeDilationFx.Mode;
             float dt = Time.unscaledDeltaTime;
-            _timer += dt;
 
             if (mode != _lastMode)
             {
                 if (_lastMode == TimeFxMode.Planning) HideAll();
-                if (mode == TimeFxMode.Planning && _lastMode == TimeFxMode.None) EmitHistory(settings);
-                if (mode != TimeFxMode.None) _history.Clear();
+                // 계획에 들어온 순간의 자세가 기준점이다. 여기서부터 움직인 만큼만 잔상이 남는다.
+                if (mode == TimeFxMode.Planning) _lastGhostPose = CurrentPose();
                 _lastMode = mode;
-                _timer = 0f;
             }
 
-            switch (mode)
-            {
-                case TimeFxMode.None:
-                    RecordHistory(settings);
-                    break;
-                case TimeFxMode.Planning:
-                    EmitEvery(settings.PlanningGhostInterval, settings.PlanningGhostSeconds, settings.GhostAlpha);
-                    break;
-            }
-
+            if (mode == TimeFxMode.Planning) EmitOnMove(settings);
             UpdateGhosts(dt, settings.GhostSplitPixels, settings.GhostHoldFraction);
         }
 
-        private void RecordHistory(TimeFxSettings settings)
-        {
-            if (_timer < settings.HistoryInterval) return;
-            _timer = 0f;
-            if ((transform.position - _lastHistoryPosition).sqrMagnitude < MinMoveForHistory * MinMoveForHistory) return;
+        private Sample CurrentPose() =>
+            new Sample { Position = transform.position, Sprite = _source.sprite, FlipX = _source.flipX };
 
-            _lastHistoryPosition = transform.position;
-            _history.Enqueue(new Sample { Position = transform.position, Sprite = _source.sprite, FlipX = _source.flipX });
-            while (_history.Count > settings.HistoryGhosts) _history.Dequeue();
-        }
-
-        /// <summary>
-        /// 계획으로 들어가는 순간: 방금까지의 움직임 궤적이 얼어붙은 잔상으로 남는다.
-        /// 가장 오래된 잔상부터 하나씩 차례로 사라지도록 수명을 조금씩 늘려 준다.
-        /// </summary>
-        private void EmitHistory(TimeFxSettings settings)
+        /// <summary>계획 중 일정 거리(정수 픽셀) 이상 움직이면, 떠나온 자세를 잔상으로 남긴다.</summary>
+        private void EmitOnMove(TimeFxSettings settings)
         {
-            int i = 0;
-            int count = _history.Count;
-            foreach (var sample in _history)
-            {
-                float recency = (i + 1f) / count; // 최근일수록 조금 더 진하다
-                float life = settings.HistoryGhostSeconds + i * settings.HistoryStaggerSeconds;
-                Spawn(sample, life, settings.GhostAlpha * Mathf.Lerp(0.6f, 1f, recency));
-                i++;
-            }
-            _history.Clear();
-        }
+            float minMove = Mathf.Max(1, settings.GhostMinMovePixels) / (float)PixelsPerUnit;
+            if ((transform.position - _lastGhostPose.Position).sqrMagnitude < minMove * minMove) return;
 
-        private void EmitEvery(float interval, float life, float alpha)
-        {
-            if (_timer < interval) return;
-            _timer = 0f;
-            Spawn(new Sample { Position = transform.position, Sprite = _source.sprite, FlipX = _source.flipX }, life, alpha);
+            Spawn(_lastGhostPose, settings.PlanningGhostSeconds, settings.GhostAlpha);
+            _lastGhostPose = CurrentPose();
         }
 
         private void Spawn(Sample sample, float life, float alpha)

@@ -25,14 +25,8 @@ MonoBehaviour:
   RewindChromatic: 0.5
   RewindSaturation: -45
   RewindGrain: 0.05
-  HistoryInterval: 0.035
-  HistoryGhosts: 6
-  HistoryGhostSeconds: 2
-  HistoryStaggerSeconds: 0.4
-  PlanningGhostInterval: 0.3
+  GhostMinMovePixels: 1
   PlanningGhostSeconds: 2.5
   GhostHoldFraction: 0.4
-  RewindGhostInterval: 0.04
-  RewindGhostSeconds: 0.3
   GhostAlpha: 0.4
   GhostSplitPixels: 2

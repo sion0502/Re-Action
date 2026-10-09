@@ -28,15 +28,9 @@ namespace ReAction.Fx
         [Range(0f, 1f)] public float RewindGrain = 0.05f;
 
         [Header("잔상")]
-        [Tooltip("실행 중 움직임을 기억해 두는 간격 (초). 계획에 들어가는 순간 이 궤적이 잔상으로 남는다")]
-        public float HistoryInterval = 0.035f;
-        public int HistoryGhosts = 6;
-        [Tooltip("궤적 잔상 중 가장 오래된 것이 사라지기까지 (초). 뒤의 것일수록 HistoryStaggerSeconds씩 더 오래 남는다")]
-        public float HistoryGhostSeconds = 2f;
-        [Tooltip("궤적 잔상이 오래된 것부터 하나씩 사라지는 간격 (초)")]
-        public float HistoryStaggerSeconds = 0.4f;
-        [Tooltip("계획 중 현재 자세에서 잔상이 피어나는 간격 / 수명 (초)")]
-        public float PlanningGhostInterval = 0.3f;
+        [Tooltip("계획 중 이만큼(픽셀) 움직일 때마다 떠나온 자세가 잔상으로 남는다")]
+        [Min(1)] public int GhostMinMovePixels = 1;
+        [Tooltip("잔상 하나가 남아 있는 시간 (초). 먼저 생긴 잔상부터 사라진다")]
         public float PlanningGhostSeconds = 2.5f;
         [Tooltip("잔상이 수명의 이 비율까지는 진하게 유지되다가 그 뒤로 서서히 사라진다")]
         [Range(0f, 0.95f)] public float GhostHoldFraction = 0.4f;
