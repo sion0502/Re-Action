@@ -218,7 +218,8 @@ LLM/Mock 결과 → 검증 → 실행. 검사 항목:
   - 정문 열고 진입 / 정문 걷어차기 / 정문 부수기
   - 외벽 타고 2F 동쪽 창문 깨고 진입 (우회 루트)
 - 최소 2개 이상의 서로 다른 클리어 루트가 존재해야 한다.
-- 적 타입 (MVP): **근접 적**(가까우면 일정 시간 후 공격), **총 든 적**(시야 내 플레이어에게 예고선 후 발사 → 구르기/슬라이드로 회피 가능)
+- 적 타입 (첫 빌드): **근접 적 1종만** — 고블린(`Monsters Creatures Fantasy/Goblin`). 가까우면 일정 시간 후 공격.
+  - 원거리 적(예고선 후 발사 → 구르기/슬라이드로 회피)은 첫 빌드가 돌아간 뒤 추가. 에셋에 총·투사체가 없으므로 어떤 몬스터로 할지 그때 정한다. `EnemyBase`는 원거리 적을 붙일 수 있게 설계해 둔다.
 - 적은 Planning 중엔 정지, Executing 중에만 행동. 적 반응 타이밍은 고정값(결정론).
 - 스테이지 데이터는 하드코딩하지 말고 `StageDefinition`(ScriptableObject 또는 JSON)으로 정의: Zone 목록, 연결 관계, 어포던스, 적 스폰, 클리어 Zone.
 
@@ -241,6 +242,7 @@ LLM/Mock 결과 → 검증 → 실행. 검사 항목:
   - 외부 에셋 폴더의 파일(스프라이트·애니메이션·스크립트)은 수정하지 않는다. 임포트 설정 변경만 에디터 API로 허용. 필요한 프리팹·애니메이터는 `_Project/` 아래에 새로 만들어 참조한다. 에셋의 데모 스크립트(`HeroKnight.cs` 등)는 게임 로직에 쓰지 않는다.
   - 픽셀 아트 설정(M0에서 적용됨): 모든 스프라이트 Filter Mode = Point, Compression = None, Mipmap 끔, **PPU = 32**. 카메라는 Pixel Perfect Camera(PPU 32, 기준 해상도 640×360 → 화면 20×11.25 유닛).
   - 프레임 크기: 히어로 100×55px, 몬스터 150×150px(캐릭터는 프레임 중앙 부분만 차지). 발 위치 기준 피벗 정렬은 프리팹 만들 때 맞춘다.
+  - 히어로 에셋에 전용 애니메이션이 없는 행동은 **기존 동작을 재활용**한다 (예: `SLIDE` → Roll, `WALL_CLIMB`/`CLIMB_LADDER` → WallSlide·LedgeGrab·Jump 조합, `KICK_DOOR` → Attack). 행동 ↔ 애니메이션 매핑은 `ActionDefinition`에 두어 나중에 아트만 교체할 수 있게 한다.
   - 건물·배경은 MVP에서 단색 도형/타일 플레이스홀더로 시작. SpriteRenderer/Animator를 로직과 분리해서 나중에 교체하기 쉽게.
 
 ---
@@ -255,7 +257,7 @@ Assets/
       Actions/       # ActionType, ActionDefinition, ActionExecutor, 각 행동 구현
       Interpretation/# IActionInterpreter, MockInterpreter, LlmInterpreter, ActionValidator, DTO
       Stage/         # StageDefinition, Zone, Affordance, FogOfWar
-      Enemies/       # EnemyBase, MeleeEnemy, GunnerEnemy
+      Enemies/       # EnemyBase, MeleeEnemy (원거리 적은 나중에)
       Player/        # PlayerController(행동 실행 대상), PlayerHealth
       Replay/        # RunRecord, ReplayPlayer, StateRecorder(틱별 스냅샷), RewindPlayer
       UI/            # PromptInputUI, ZoneHighlighter, HistoryPanel, HUD
@@ -290,7 +292,7 @@ Assets/
 - EditMode 테스트: "문을 걷어차고 들어가서 앞구르기 후 공격" → 4개로 인식되어 실행 거부 + 수정 안내되는지 등
 
 **M4. 적 + 죽음/리셋**
-- 근접 적, 총 적(첫 빌드부터 2종), 1히트 사망, 되감기 연출 + 자동 리셋, 시도 횟수
+- 근접 적 1종(고블린), 1히트 사망, 되감기 연출 + 자동 리셋, 시도 횟수
 - EditMode 테스트: 결정론(같은 입력 2회 → 같은 결과), 리셋 범위(안개 해제 유지 / 월드 상태 초기화)
 
 **M5. 스테이지 1 완성 + 환경 행동**
