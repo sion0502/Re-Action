@@ -38,7 +38,8 @@ namespace ReAction.Core
             // StageController.Awake에서 그래프가 만들어진 뒤에 초기화한다.
             _interpreter = new MockInterpreter(MockKeywordTable.FromJson(_mockKeywords.text));
             var allowed = _game.Catalog.Definitions.Where(d => d != null).Select(d => d.Type);
-            _validator = new ActionValidator(_stage.Graph, _stage.Knowledge, allowed);
+            _validator = new ActionValidator(_stage.Graph, _stage.Knowledge, allowed,
+                ActionExecutor.MaxActionsPerPrompt, _stage.IsEntryOpen);
         }
 
         private void OnDestroy() => _cts?.Cancel();

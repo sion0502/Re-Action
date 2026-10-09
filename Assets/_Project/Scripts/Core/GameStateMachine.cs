@@ -18,7 +18,8 @@ namespace ReAction.Core
             { GameState.Dead, new[] { GameState.Rewind } },
             { GameState.Rewind, new[] { GameState.Reset } },
             { GameState.Reset, new[] { GameState.Planning } },
-            { GameState.Cleared, new[] { GameState.FinalRun } },
+            // 클리어 후 FINAL RUN(M6) 또는 처음부터 다시
+            { GameState.Cleared, new[] { GameState.FinalRun, GameState.Rewind } },
             { GameState.FinalRun, new[] { GameState.Planning } },
         };
 

@@ -19,7 +19,7 @@ namespace ReAction.Editor
     /// 행동 정의 등 조정 가능한 에셋은 없을 때만 생성하고, 씬의 게임 오브젝트는 매번 다시 만든다.
     /// 지형은 StageDefinition 데이터에서 만들어진다.
     /// </summary>
-    public static class TestSceneBuilder
+    public static class StageSceneBuilder
     {
         private const string Root = "Assets/_Project";
         private const string ScenePath = Root + "/Scenes/Main.unity";
@@ -27,7 +27,7 @@ namespace ReAction.Editor
         private const string NoFrictionPath = Root + "/Art/Physics/NoFriction.physicsMaterial2D";
         private const string ActionsFolder = Root + "/ScriptableObjects/Actions";
         private const string CatalogPath = Root + "/ScriptableObjects/ActionCatalog.asset";
-        private const string TestStagePath = Root + "/ScriptableObjects/Stages/TestStage.asset";
+        private const string StagePath = Root + "/ScriptableObjects/Stages/Stage1.asset";
         private const string MockKeywordsPath = Root + "/Data/mock_keywords.json";
         private const string PlayerControllerPath = Root + "/Art/Animations/Player.controller";
         private const string PlayerPrefabPath = Root + "/Prefabs/Player.prefab";
@@ -39,7 +39,7 @@ namespace ReAction.Editor
         private static readonly string[] HeroStates =
             { "Idle", "Run", "Jump", "Fall", "Roll", "Attack1", "Attack2", "Attack3", "WallSlide", "LedgeGrab", "Hurt", "Death" };
 
-        [MenuItem("ReAction/Build Test Scene")]
+        [MenuItem("ReAction/Build Stage 1 Scene")]
         public static void Build()
         {
             Physics2D.simulationMode = SimulationMode2D.Script;
@@ -49,7 +49,7 @@ namespace ReAction.Editor
             var catalog = EnsureActionCatalog();
             var controller = EnsurePlayerAnimator();
             var playerPrefab = BuildPlayerPrefab(controller, noFriction);
-            var stageDefinition = WriteTestStage();
+            WriteStage();
             var goblinPrefab = EnemyBuilder.BuildGoblinPrefab(noFriction);
             EnemyBuilder.EnsureSettings();
             FxBuilder.EnsureSettings();
@@ -60,11 +60,14 @@ namespace ReAction.Editor
             var scene = EditorSceneManager.OpenScene(ScenePath, OpenSceneMode.Single);
             var goblinSettings = EnemyBuilder.EnsureSettings();
             var fxSettings = FxBuilder.EnsureSettings();
+            var stageDefinition = AssetDatabase.LoadAssetAtPath<StageDefinition>(StagePath);
+            catalog = AssetDatabase.LoadAssetAtPath<ActionCatalog>(CatalogPath);
             var gameRoot = FindOrCreateRoot("--- Game ---");
             for (int i = gameRoot.transform.childCount - 1; i >= 0; i--)
                 Object.DestroyImmediate(gameRoot.transform.GetChild(i).gameObject);
 
-            BuildStage(gameRoot.transform, stageDefinition, square, noFriction);
+
+            Camera.main.transform.position = new Vector3(0f, Stage1Data.CameraY, -10f);
 
             var player = (GameObject)PrefabUtility.InstantiatePrefab(playerPrefab, gameRoot.transform);
             player.transform.position = stageDefinition.PlayerStart;
@@ -85,6 +88,11 @@ namespace ReAction.Editor
             SetRef(stage, "_game", game);
             SetRef(stage, "_player", player.GetComponent<PlayerMotor>());
             SetRef(stage, "_fogSprite", square);
+            SetRef(game, "_stage", stage);
+
+            // 지형은 Stage 아래, 문·창문은 StageController 아래 (StageController가 찾아서 관리한다)
+            BuildStage(gameRoot.transform, stageDefinition, square, noFriction);
+            BuildEntries(stageGo.transform, stageDefinition, square, noFriction);
 
             var enemies = EnemyBuilder.Spawn(gameRoot.transform, stageDefinition, goblinPrefab, goblinSettings,
                 player.GetComponent<PlayerMotor>(), stage, game);
@@ -119,7 +127,7 @@ namespace ReAction.Editor
             EditorSceneManager.MarkSceneDirty(scene);
             EditorSceneManager.SaveScene(scene);
             AssetDatabase.SaveAssets();
-            PzLog.Info("Test scene built");
+            PzLog.Info("Stage 1 scene built");
         }
 
         private static void BuildStage(Transform parent, StageDefinition definition, Sprite square, PhysicsMaterial2D material)
@@ -142,21 +150,62 @@ namespace ReAction.Editor
                 if (!block.Solid) continue;
                 var collider = go.AddComponent<BoxCollider2D>();
                 collider.sharedMaterial = material;
+
+                if (!block.OneWay) continue;
+                // 사다리 구멍 덮개: 아래에서 위로는 통과, 위에서는 밟을 수 있다
+                collider.usedByEffector = true;
+                var effector = go.AddComponent<PlatformEffector2D>();
+                effector.useOneWay = true;
+                effector.surfaceArc = 170f;
             }
         }
 
-        private static StageDefinition WriteTestStage()
+        /// <summary>문 구역마다 닫힌 문을, 창문 구역마다 깰 수 있는 유리를 만든다.</summary>
+        private static void BuildEntries(Transform parent, StageDefinition definition, Sprite square, PhysicsMaterial2D material)
         {
-            var definition = AssetDatabase.LoadAssetAtPath<StageDefinition>(TestStagePath);
+            const float doorWidth = 0.2f;
+            const float doorHeight = 1.5f;
+            const float glassWidth = 0.25f;
+
+            foreach (var zone in definition.Zones)
+            {
+                if (zone.Kind != ZoneKind.Door && zone.Kind != ZoneKind.Window) continue;
+
+                var go = new GameObject($"{zone.Kind}_{zone.Id}");
+                go.transform.SetParent(parent);
+                var b = zone.Bounds;
+                if (zone.Kind == ZoneKind.Door)
+                {
+                    go.transform.position = new Vector3(b.center.x, b.yMin + doorHeight / 2f, 0f);
+                    go.transform.localScale = new Vector3(doorWidth, doorHeight, 1f);
+                }
+                else
+                {
+                    go.transform.position = b.center;
+                    go.transform.localScale = new Vector3(glassWidth, b.height, 1f);
+                }
+
+                var renderer = go.AddComponent<SpriteRenderer>();
+                renderer.sprite = square;
+                renderer.sortingOrder = 2;
+                go.AddComponent<BoxCollider2D>().sharedMaterial = material;
+
+                if (zone.Kind == ZoneKind.Door) go.AddComponent<Door>().Setup(zone.Id);
+                else go.AddComponent<BreakableWindow>().Setup(zone.Id);
+            }
+        }
+
+        private static void WriteStage()
+        {
+            var definition = AssetDatabase.LoadAssetAtPath<StageDefinition>(StagePath);
             if (definition == null)
             {
-                EnsureFolder(Path.GetDirectoryName(TestStagePath));
+                EnsureFolder(Path.GetDirectoryName(StagePath));
                 definition = ScriptableObject.CreateInstance<StageDefinition>();
-                AssetDatabase.CreateAsset(definition, TestStagePath);
+                AssetDatabase.CreateAsset(definition, StagePath);
             }
-            TestStageData.Fill(definition);
+            Stage1Data.Fill(definition);
             EditorUtility.SetDirty(definition);
-            return definition;
         }
 
         private static GameObject BuildPlayerPrefab(AnimatorController controller, PhysicsMaterial2D material)
@@ -234,6 +283,18 @@ namespace ReAction.Editor
                 EnsureAction(ActionType.Roll, "구르기", "Roll", speed: 7f, verticalSpeed: 0f, distance: 0f, duration: 0.6f, timeout: 2f),
                 EnsureAction(ActionType.Wait, "대기", "", speed: 0f, verticalSpeed: 0f, distance: 0f, duration: 0.5f, timeout: 0f),
                 EnsureAction(ActionType.Slash, "베기", "Attack1", speed: 0f, verticalSpeed: 0f, distance: 1.3f, duration: 0.43f, timeout: 2f),
+                EnsureAction(ActionType.Walk, "걷기", "", speed: 2.5f, verticalSpeed: 0f, distance: 2f, duration: 0f, timeout: 4f),
+                EnsureAction(ActionType.Sprint, "전력 질주", "", speed: 9f, verticalSpeed: 0f, distance: 6f, duration: 0f, timeout: 3f),
+                EnsureAction(ActionType.Backstep, "뒤로 물러나기", "", speed: 5f, verticalSpeed: 0f, distance: 1.5f, duration: 0f, timeout: 1.5f),
+                EnsureAction(ActionType.Slide, "슬라이딩", "Roll", speed: 8f, verticalSpeed: 0f, distance: 0f, duration: 0.4f, timeout: 2f),
+                EnsureAction(ActionType.OpenDoor, "문 열기", "Idle", speed: 0f, verticalSpeed: 0f, distance: 0f, duration: 0.25f, timeout: 6f),
+                EnsureAction(ActionType.KickDoor, "문 걷어차기", "Attack2", speed: 0f, verticalSpeed: 0f, distance: 0f, duration: 0.4f, timeout: 6f),
+                EnsureAction(ActionType.BreakDoor, "문 부수기", "Attack3", speed: 0f, verticalSpeed: 0f, distance: 0f, duration: 0.6f, timeout: 6f),
+                EnsureAction(ActionType.Enter, "진입", "", speed: 6f, verticalSpeed: 0f, distance: 0f, duration: 0f, timeout: 4f),
+                EnsureAction(ActionType.CrashWindow, "창문 깨고 진입", "Attack1", speed: 0f, verticalSpeed: 0f, distance: 0f, duration: 0.25f, timeout: 3f),
+                EnsureAction(ActionType.VaultWindow, "창문 넘기", "", speed: 0f, verticalSpeed: 0f, distance: 0f, duration: 0f, timeout: 3f),
+                EnsureAction(ActionType.WallClimb, "벽 타기", "WallSlide", speed: 3f, verticalSpeed: 0f, distance: 0f, duration: 0f, timeout: 6f),
+                EnsureAction(ActionType.ClimbLadder, "사다리 오르기", "WallSlide", speed: 3.5f, verticalSpeed: 0f, distance: 0f, duration: 0f, timeout: 6f),
                 EnsureAction(ActionType.Turn, "방향 전환", "", speed: 0f, verticalSpeed: 0f, distance: 0f, duration: 0f, timeout: 0f),
             };
 

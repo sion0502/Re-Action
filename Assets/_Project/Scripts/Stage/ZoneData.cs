@@ -37,6 +37,8 @@ namespace ReAction.Stage
         public ActionType[] Affordances = Array.Empty<ActionType>();
         [Tooltip("처음부터 공개된 구역 (건물 바깥, 정문 등)")]
         public bool RevealedAtStart;
+        [Tooltip("외벽: 건물이 있는 쪽 (+1 오른쪽, -1 왼쪽). 이쪽 면에 붙어서 오른다")]
+        public int WallSide = 1;
 
         public float Area => Bounds.width * Bounds.height;
     }
@@ -62,6 +64,8 @@ namespace ReAction.Stage
         public string Name;
         public Rect Bounds;
         public bool Solid = true;
+        [Tooltip("아래에서 위로는 통과하고 위에서는 밟을 수 있는 발판 (사다리 구멍 덮개)")]
+        public bool OneWay;
         public Color Color = Color.gray;
         public int SortingOrder;
     }

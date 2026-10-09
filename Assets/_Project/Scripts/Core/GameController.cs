@@ -5,6 +5,7 @@ using ReAction.Actions;
 using ReAction.Enemies;
 using ReAction.Player;
 using ReAction.Replay;
+using ReAction.Stage;
 using UnityEngine;
 
 namespace ReAction.Core
@@ -23,6 +24,7 @@ namespace ReAction.Core
         [SerializeField] private ActionCatalog _catalog;
         [SerializeField] private PlayerMotor _player;
         [SerializeField] private PlayerView _playerView;
+        [SerializeField] private StageController _stage;
         [SerializeField] private List<MeleeEnemy> _enemies = new List<MeleeEnemy>();
         [SerializeField] private RewindPlayer _rewindPlayer;
 
@@ -66,6 +68,9 @@ namespace ReAction.Core
             }
         }
 
+        /// <summary>지금까지 실행한 프롬프트 수 (모든 시도 합계).</summary>
+        public int TotalPrompts { get; private set; }
+
         /// <summary>몇 번째 시도인지 (1부터).</summary>
         public int Attempt { get; private set; } = 1;
 
@@ -73,7 +78,8 @@ namespace ReAction.Core
         public string LastDeathCause { get; private set; } = "";
 
         /// <summary>사망 연출이 끝나 다시 시작할 수 있는 상태인지.</summary>
-        public bool CanRestart => _states.Current == GameState.Dead && _deadTimer <= 0f;
+        public bool CanRestart =>
+            (_states.Current == GameState.Dead && _deadTimer <= 0f) || _states.Current == GameState.Cleared;
 
         /// <summary>마지막 실행 결과를 사람이 읽을 수 있게 요약한 문자열.</summary>
         public string LastResult { get; private set; } = "";
@@ -123,6 +129,11 @@ namespace ReAction.Core
 
         private void Start()
         {
+            // 문·창문은 StageController.Awake에서 모이므로 Start에서 등록한다.
+            if (_stage != null)
+            {
+                foreach (var resettable in _stage.Resettables) _resetter.Register(resettable);
+            }
             _resetter.CaptureAll();
             _recorder.Record();
             _states.TryTransition(GameState.Planning);
@@ -165,7 +176,7 @@ namespace ReAction.Core
             var actions = new List<PlayerAction>(requests.Count);
             foreach (var request in requests)
             {
-                var action = ActionFactory.Create(request, _catalog);
+                var action = ActionFactory.Create(request, _catalog, _stage);
                 if (action == null)
                 {
                     error = $"아직 실행할 수 없는 행동: {request.Type}";
@@ -181,12 +192,24 @@ namespace ReAction.Core
             }
 
             _runRecord.Add(new PlanRecord(Tick, prompt, targetZoneId, requests));
+            TotalPrompts++;
             LastResult = "";
             LastRunFailed = false;
             _settling = false;
             _states.TryTransition(GameState.Executing);
             PzLog.Info($"Execute at tick {Tick} [{string.Join(", ", requests)}]");
             return true;
+        }
+
+        /// <summary>목표(옥상) 도달. 실행 중에만 인정한다.</summary>
+        public void NotifyCleared()
+        {
+            if (_states.Current != GameState.Executing) return;
+            _sim.Executor.Cancel();
+            _settling = false;
+            _player.Velocity = Vector2.zero;
+            PzLog.Info($"Cleared! attempt {Attempt}, prompts {TotalPrompts}, tick {Tick}");
+            _states.TryTransition(GameState.Cleared);
         }
 
         /// <summary>
@@ -242,18 +265,19 @@ namespace ReAction.Core
         private void UpdateSettle()
         {
             _settleTicks++;
-            _groundedTicks = _player.IsGrounded ? _groundedTicks + 1 : 0;
+            // 외벽에 매달린 상태도 안정 상태로 본다 (다음 프롬프트에서 창문을 깨는 등).
+            bool stable = _player.IsGrounded || _player.IsClinging;
+            _groundedTicks = stable ? _groundedTicks + 1 : 0;
             if (_groundedTicks < SettleGroundedTicks && _settleTicks < MaxSettleTicks) return;
 
             _settling = false;
-            _player.Velocity = Vector2.zero;
+            if (!_player.IsClinging) _player.Velocity = Vector2.zero;
             _states.TryTransition(GameState.Planning);
         }
 
         private void OnPlayerDied()
         {
             _sim.Executor.Cancel();
-            _playerView.ClearAction();
             _settling = false;
             _deadTimer = _deathPauseSeconds;
             LastDeathCause = _player.DeathCause;
@@ -287,13 +311,11 @@ namespace ReAction.Core
 
         private void OnActionStarted(PlayerAction action, int index)
         {
-            _playerView.PlayAction(action.Definition.AnimationState);
             PzLog.Info($"  [{index + 1}] {action} start (tick {Tick})");
         }
 
         private void OnActionFinished(PlayerAction action, int index)
         {
-            _playerView.ClearAction();
             string result = action.Status == ActionStatus.Succeeded ? "OK" : $"FAIL: {action.FailReason}";
             PzLog.Info($"  [{index + 1}] {action} {result} ({action.ElapsedTicks} ticks, pos {_player.Position})");
             LastResult += $"[{index + 1}] {action.Definition.DisplayName} {(action.Status == ActionStatus.Succeeded ? "성공" : "실패 - " + action.FailReason)}\n";

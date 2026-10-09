@@ -1,4 +1,5 @@
 using System.Collections.Generic;
+using System.Linq;
 using ReAction.Core;
 using ReAction.Player;
 using UnityEngine;
@@ -6,12 +7,14 @@ using UnityEngine;
 namespace ReAction.Stage
 {
     /// <summary>
-    /// 스테이지 런타임: 구역 그래프, 발견 상태(안개), 플레이어가 있는 구역 추적.
-    /// 안개는 공개되지 않은 구역 위에 덮는 어두운 사각형으로 표시한다 (런타임 생성).
+    /// 스테이지 런타임: 구역 그래프, 발견 상태(안개), 플레이어가 있는 구역 추적, 문·창문 조회, 클리어 판정.
+    /// 안개는 공개되지 않은 공간(방) 위에 덮는 어두운 사각형으로 표시한다 (런타임 생성).
     /// </summary>
-    public sealed class StageController : MonoBehaviour
+    public sealed class StageController : MonoBehaviour, IStageWorld
     {
         private const int FogSortingOrder = 100;
+        // 방 사이 벽·문틀까지 덮도록 안개를 조금 크게 그린다
+        private const float FogPadding = 0.15f;
 
         [SerializeField] private StageDefinition _definition;
         [SerializeField] private GameController _game;
@@ -25,17 +28,36 @@ namespace ReAction.Stage
 
         private readonly Dictionary<string, SpriteRenderer> _fog = new Dictionary<string, SpriteRenderer>();
         private readonly List<SpriteRenderer> _fading = new List<SpriteRenderer>();
+        private readonly Dictionary<string, Door> _doors = new Dictionary<string, Door>();
+        private readonly Dictionary<string, BreakableWindow> _windows = new Dictionary<string, BreakableWindow>();
 
         public StageDefinition Definition => _definition;
         public ZoneGraph Graph { get; private set; }
         public ZoneKnowledge Knowledge { get; private set; }
         public string CurrentZoneId { get; private set; }
 
+        /// <summary>문·창문 (월드 리셋 대상). GameController가 등록한다.</summary>
+        public IEnumerable<IResettable> Resettables => _doors.Values.Cast<IResettable>().Concat(_windows.Values);
+
         private void Awake()
         {
             Graph = new ZoneGraph(_definition.Zones);
             Knowledge = new ZoneKnowledge(Graph);
             Knowledge.Revealed += OnRevealed;
+
+            foreach (var door in GetComponentsInChildren<Door>(true))
+            {
+                door.Initialize();
+                _doors[door.ZoneId] = door;
+                door.Opened += d => RevealConnectedSpaces(d.ZoneId);
+            }
+            foreach (var window in GetComponentsInChildren<BreakableWindow>(true))
+            {
+                window.Initialize();
+                _windows[window.ZoneId] = window;
+                window.Broken += w => RevealConnectedSpaces(w.ZoneId);
+            }
+
             CreateFog();
         }
 
@@ -53,7 +75,24 @@ namespace ReAction.Stage
 
         private void Start() => UpdatePlayerZone();
 
-        private void OnTicked(int tick) => UpdatePlayerZone();
+        public ZoneData GetZone(string zoneId) => Graph.Get(zoneId);
+        public Door GetDoor(string zoneId) => zoneId != null && _doors.TryGetValue(zoneId, out var d) ? d : null;
+        public BreakableWindow GetWindow(string zoneId) => zoneId != null && _windows.TryGetValue(zoneId, out var w) ? w : null;
+
+        public bool IsEntryOpen(string zoneId)
+        {
+            var door = GetDoor(zoneId);
+            if (door != null) return door.IsPassable;
+            var window = GetWindow(zoneId);
+            if (window != null) return window.IsBroken;
+            return true;
+        }
+
+        private void OnTicked(int tick)
+        {
+            UpdatePlayerZone();
+            if (CurrentZoneId != null && CurrentZoneId == _definition.ClearZoneId) _game.NotifyCleared();
+        }
 
         private void UpdatePlayerZone()
         {
@@ -66,10 +105,31 @@ namespace ReAction.Stage
             if (id != null) Knowledge.Reveal(id);
         }
 
+        /// <summary>문을 열거나 창문을 깨면 그 너머 공간이 보인다.</summary>
+        private void RevealConnectedSpaces(string entryZoneId)
+        {
+            var entry = Graph.Get(entryZoneId);
+            if (entry == null) return;
+            foreach (var id in entry.Connections)
+            {
+                var zone = Graph.Get(id);
+                if (zone != null && zone.Kind.IsSpace()) Knowledge.Reveal(id);
+            }
+        }
+
         private void OnRevealed(string zoneId)
         {
             PzLog.Info($"Revealed {zoneId}");
             if (_fog.TryGetValue(zoneId, out var fog)) _fading.Add(fog);
+
+            // 방이 보이면 그 방에 붙은 사다리·안쪽 문도 알게 된다.
+            var revealed = Graph.Get(zoneId);
+            if (revealed == null || !revealed.Kind.IsSpace()) return;
+            foreach (var zone in Graph.Zones)
+            {
+                if (zone.Kind.IsSpace() || Knowledge.IsRevealed(zone.Id)) continue;
+                if (System.Array.IndexOf(zone.Connections, zoneId) >= 0) Knowledge.Reveal(zone.Id);
+            }
         }
 
         private void Update()
@@ -94,12 +154,13 @@ namespace ReAction.Stage
 
             foreach (var zone in Graph.Zones)
             {
-                if (Knowledge.IsRevealed(zone.Id)) continue;
+                // 안개는 공간(방)에만 덮는다. 사다리·문 같은 지점은 방 안개에 함께 가려진다.
+                if (!zone.Kind.IsSpace() || Knowledge.IsRevealed(zone.Id)) continue;
 
                 var go = new GameObject($"Fog_{zone.Id}");
                 go.transform.SetParent(root, false);
                 go.transform.position = zone.Bounds.center;
-                go.transform.localScale = new Vector3(zone.Bounds.width, zone.Bounds.height, 1f);
+                go.transform.localScale = new Vector3(zone.Bounds.width + FogPadding * 2f, zone.Bounds.height + FogPadding * 2f, 1f);
 
                 var renderer = go.AddComponent<SpriteRenderer>();
                 renderer.sprite = _fogSprite;

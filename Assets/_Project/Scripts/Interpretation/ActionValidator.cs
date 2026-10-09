@@ -26,14 +26,17 @@ namespace ReAction.Interpretation
         private readonly ZoneKnowledge _knowledge;
         private readonly HashSet<ActionType> _allowed;
         private readonly int _maxActions;
+        private readonly System.Func<string, bool> _isEntryOpen;
 
+        /// <param name="isEntryOpen">지금 월드에서 문·창문이 열려 있는지 (없으면 항상 닫힌 것으로 본다).</param>
         public ActionValidator(ZoneGraph graph, ZoneKnowledge knowledge, IEnumerable<ActionType> allowedActions,
-            int maxActions = ActionExecutor.MaxActionsPerPrompt)
+            int maxActions = ActionExecutor.MaxActionsPerPrompt, System.Func<string, bool> isEntryOpen = null)
         {
             _graph = graph;
             _knowledge = knowledge;
             _allowed = new HashSet<ActionType>(allowedActions);
             _maxActions = maxActions;
+            _isEntryOpen = isEntryOpen;
         }
 
         public ValidationResult Validate(InterpretResult interpretation, string currentZoneId)
@@ -115,9 +118,10 @@ namespace ReAction.Interpretation
             if (zone == null) return "그런 곳은 없다";
             if (!_knowledge.IsRevealed(zone.Id)) return "아직 모르는 곳이다";
 
-            // 문·창문으로 들어가려면 같은 프롬프트에서 먼저 열거나 깨야 한다 (문 상태 추적은 M5).
-            if (zone.Kind == ZoneKind.Door && !openedEntries.Contains(zone.Id)) return "문을 먼저 열어야 한다";
-            if (zone.Kind == ZoneKind.Window && !openedEntries.Contains(zone.Id)) return "창문을 먼저 깨거나 열어야 한다";
+            // 문·창문으로 들어가려면 이미 열려 있거나, 같은 프롬프트에서 먼저 열거나 깨야 한다.
+            bool open = openedEntries.Contains(zone.Id) || (_isEntryOpen != null && _isEntryOpen(zone.Id));
+            if (zone.Kind == ZoneKind.Door && !open) return "문을 먼저 열어야 한다";
+            if (zone.Kind == ZoneKind.Window && !open) return "창문을 먼저 깨거나 열어야 한다";
             return null;
         }
     }

@@ -26,6 +26,7 @@ namespace ReAction.UI
         [SerializeField] private Button _restartButton;
 
         private bool _moveCaretToEnd;
+        private TMP_Text _restartLabel;
 
         private void OnEnable()
         {
@@ -72,6 +73,7 @@ namespace ReAction.UI
                 case GameState.Executing: return "실행 중";
                 case GameState.Dead: return "죽었다";
                 case GameState.Rewind: return "되감는 중 (클릭: 건너뛰기)";
+                case GameState.Cleared: return "클리어!";
                 default: return "";
             }
         }
@@ -96,14 +98,23 @@ namespace ReAction.UI
             }
         }
 
-        /// <summary>죽으면 원인과 다시 시작 버튼을 띄운다. 사망 연출이 끝나야 누를 수 있다 (Enter도 가능).</summary>
+        /// <summary>
+        /// 죽으면 원인과 다시 시작 버튼을, 클리어하면 결과와 처음부터 다시 버튼을 띄운다.
+        /// 사망 연출이 끝나야 누를 수 있다 (Enter도 가능).
+        /// </summary>
         private void UpdateDeathPanel(Keyboard keyboard)
         {
             bool dead = _game.State == GameState.Dead;
-            if (_deathPanel.activeSelf != dead) _deathPanel.SetActive(dead);
-            if (!dead) return;
+            bool cleared = _game.State == GameState.Cleared;
+            bool show = dead || cleared;
+            if (_deathPanel.activeSelf != show) _deathPanel.SetActive(show);
+            if (!show) return;
 
-            _deathText.text = _game.LastDeathCause;
+            _deathText.text = cleared
+                ? $"클리어! 시도 {_game.Attempt}회 · 프롬프트 {_game.TotalPrompts}개"
+                : _game.LastDeathCause;
+            if (_restartLabel == null) _restartLabel = _restartButton.GetComponentInChildren<TMP_Text>();
+            if (_restartLabel != null) _restartLabel.text = cleared ? "처음부터 다시 (Enter)" : "다시 시작 (Enter)";
             _restartButton.interactable = _game.CanRestart;
             if (_game.CanRestart && keyboard != null &&
                 (keyboard.enterKey.wasPressedThisFrame || keyboard.numpadEnterKey.wasPressedThisFrame))

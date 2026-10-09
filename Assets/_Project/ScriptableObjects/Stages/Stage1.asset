@@ -1,0 +1,504 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 26bc73d6a08caf147ae766534c0d555a, type: 3}
+  m_Name: Stage1
+  m_EditorClassIdentifier: ReAction.Runtime::ReAction.Stage.StageDefinition
+  _zones:
+  - Id: EXT_West
+    Kind: 1
+    Floor: 0
+    Bounds:
+      serializedVersion: 2
+      x: -9.75
+      y: -5
+      width: 4.25
+      height: 9.625
+    Connections:
+    - Door_1F_West
+    - ExteriorWall_West
+    Affordances: 
+    RevealedAtStart: 1
+    WallSide: 1
+  - Id: Door_1F_West
+    Kind: 4
+    Floor: 1
+    Bounds:
+      serializedVersion: 2
+      x: -5.75
+      y: -5
+      width: 0.75
+      height: 1.5
+    Connections:
+    - EXT_West
+    - 1F-A
+    Affordances: 1c0000001d0000001e0000001f000000
+    RevealedAtStart: 1
+    WallSide: 1
+  - Id: ExteriorWall_West
+    Kind: 2
+    Floor: 0
+    Bounds:
+      serializedVersion: 2
+      x: -6.3
+      y: -5
+      width: 0.8000002
+      height: 3.1
+    Connections:
+    - EXT_West
+    - Window_2F_West
+    Affordances: 0b000000
+    RevealedAtStart: 1
+    WallSide: 1
+  - Id: Window_2F_West
+    Kind: 5
+    Floor: 2
+    Bounds:
+      serializedVersion: 2
+      x: -5.75
+      y: -1.95
+      width: 0.75
+      height: 1.5
+    Connections:
+    - ExteriorWall_West
+    - 2F-A
+    Affordances: 100000000f0000001f000000
+    RevealedAtStart: 1
+    WallSide: 1
+  - Id: 1F-A
+    Kind: 0
+    Floor: 1
+    Bounds:
+      serializedVersion: 2
+      x: -5.25
+      y: -5
+      width: 7
+      height: 2.6
+    Connections:
+    - Door_1F_West
+    - 1F-B
+    Affordances: 
+    RevealedAtStart: 0
+    WallSide: 1
+  - Id: 1F-B
+    Kind: 0
+    Floor: 1
+    Bounds:
+      serializedVersion: 2
+      x: 2
+      y: -5
+      width: 6.75
+      height: 2.6
+    Connections:
+    - 1F-A
+    - Ladder_1F_B
+    Affordances: 
+    RevealedAtStart: 0
+    WallSide: 1
+  - Id: Ladder_1F_B
+    Kind: 6
+    Floor: 1
+    Bounds:
+      serializedVersion: 2
+      x: 7
+      y: -5
+      width: 1
+      height: 2.85
+    Connections:
+    - 1F-B
+    - 2F-B
+    Affordances: 11000000
+    RevealedAtStart: 0
+    WallSide: 1
+  - Id: 2F-A
+    Kind: 0
+    Floor: 2
+    Bounds:
+      serializedVersion: 2
+      x: -5.25
+      y: -2.15
+      width: 7
+      height: 2.6000001
+    Connections:
+    - Window_2F_West
+    - Door_2F_Mid
+    - Ladder_2F_A
+    Affordances: 
+    RevealedAtStart: 0
+    WallSide: 1
+  - Id: Door_2F_Mid
+    Kind: 4
+    Floor: 2
+    Bounds:
+      serializedVersion: 2
+      x: 1.5
+      y: -2.15
+      width: 0.75
+      height: 1.5
+    Connections:
+    - 2F-A
+    - 2F-B
+    Affordances: 1c0000001d0000001e0000001f000000
+    RevealedAtStart: 0
+    WallSide: 1
+  - Id: 2F-B
+    Kind: 0
+    Floor: 2
+    Bounds:
+      serializedVersion: 2
+      x: 2
+      y: -2.15
+      width: 6.75
+      height: 2.6000001
+    Connections:
+    - Ladder_1F_B
+    - Door_2F_Mid
+    Affordances: 
+    RevealedAtStart: 0
+    WallSide: 1
+  - Id: Ladder_2F_A
+    Kind: 6
+    Floor: 2
+    Bounds:
+      serializedVersion: 2
+      x: -4.5
+      y: -2.15
+      width: 1
+      height: 2.8500001
+    Connections:
+    - 2F-A
+    - 3F-A
+    Affordances: 11000000
+    RevealedAtStart: 0
+    WallSide: 1
+  - Id: 3F-A
+    Kind: 0
+    Floor: 3
+    Bounds:
+      serializedVersion: 2
+      x: -5.25
+      y: 0.7
+      width: 7
+      height: 2.6
+    Connections:
+    - Ladder_2F_A
+    - 3F-B
+    Affordances: 
+    RevealedAtStart: 0
+    WallSide: 1
+  - Id: 3F-B
+    Kind: 0
+    Floor: 3
+    Bounds:
+      serializedVersion: 2
+      x: 2
+      y: 0.7
+      width: 6.75
+      height: 2.6
+    Connections:
+    - 3F-A
+    - Ladder_3F_B
+    Affordances: 
+    RevealedAtStart: 0
+    WallSide: 1
+  - Id: Ladder_3F_B
+    Kind: 6
+    Floor: 3
+    Bounds:
+      serializedVersion: 2
+      x: 7
+      y: 0.7
+      width: 1
+      height: 2.85
+    Connections:
+    - 3F-B
+    - ROOF
+    Affordances: 11000000
+    RevealedAtStart: 0
+    WallSide: 1
+  - Id: ROOF
+    Kind: 3
+    Floor: 4
+    Bounds:
+      serializedVersion: 2
+      x: -5.5
+      y: 3.55
+      width: 14.5
+      height: 1.075
+    Connections:
+    - Ladder_3F_B
+    Affordances: 
+    RevealedAtStart: 1
+    WallSide: 1
+  _blocks:
+  - Name: Building_Backdrop
+    Bounds:
+      serializedVersion: 2
+      x: -5.25
+      y: -5
+      width: 14
+      height: 8.3
+    Solid: 0
+    OneWay: 0
+    Color: {r: 0.14, g: 0.13, b: 0.17, a: 1}
+    SortingOrder: -10
+  - Name: Ground
+    Bounds:
+      serializedVersion: 2
+      x: -10
+      y: -6.625
+      width: 20
+      height: 1.625
+    Solid: 1
+    OneWay: 0
+    Color: {r: 0.35, g: 0.33, b: 0.4, a: 1}
+    SortingOrder: 0
+  - Name: World_Left
+    Bounds:
+      serializedVersion: 2
+      x: -10
+      y: -6.625
+      width: 0.25
+      height: 11.25
+    Solid: 1
+    OneWay: 0
+    Color: {r: 0.35, g: 0.33, b: 0.4, a: 1}
+    SortingOrder: 0
+  - Name: World_Right
+    Bounds:
+      serializedVersion: 2
+      x: 9.75
+      y: -6.625
+      width: 0.25
+      height: 11.25
+    Solid: 1
+    OneWay: 0
+    Color: {r: 0.35, g: 0.33, b: 0.4, a: 1}
+    SortingOrder: 0
+  - Name: Wall_West_1F2F
+    Bounds:
+      serializedVersion: 2
+      x: -5.5
+      y: -3.5
+      width: 0.25
+      height: 1.55
+    Solid: 1
+    OneWay: 0
+    Color: {r: 0.28, g: 0.26, b: 0.33, a: 1}
+    SortingOrder: 0
+  - Name: Wall_West_Upper
+    Bounds:
+      serializedVersion: 2
+      x: -5.5
+      y: -0.45
+      width: 0.25
+      height: 4
+    Solid: 1
+    OneWay: 0
+    Color: {r: 0.28, g: 0.26, b: 0.33, a: 1}
+    SortingOrder: 0
+  - Name: Wall_East
+    Bounds:
+      serializedVersion: 2
+      x: 8.75
+      y: -5
+      width: 0.25
+      height: 8.55
+    Solid: 1
+    OneWay: 0
+    Color: {r: 0.28, g: 0.26, b: 0.33, a: 1}
+    SortingOrder: 0
+  - Name: Partition_1F
+    Bounds:
+      serializedVersion: 2
+      x: 1.75
+      y: -3.5
+      width: 0.25
+      height: 1.0999999
+    Solid: 1
+    OneWay: 0
+    Color: {r: 0.28, g: 0.26, b: 0.33, a: 1}
+    SortingOrder: 0
+  - Name: Partition_2F
+    Bounds:
+      serializedVersion: 2
+      x: 1.75
+      y: -0.6500001
+      width: 0.25
+      height: 1.1000001
+    Solid: 1
+    OneWay: 0
+    Color: {r: 0.28, g: 0.26, b: 0.33, a: 1}
+    SortingOrder: 0
+  - Name: Partition_3F
+    Bounds:
+      serializedVersion: 2
+      x: 1.75
+      y: 2.2
+      width: 0.25
+      height: 1.0999999
+    Solid: 1
+    OneWay: 0
+    Color: {r: 0.28, g: 0.26, b: 0.33, a: 1}
+    SortingOrder: 0
+  - Name: Slab_2F_L
+    Bounds:
+      serializedVersion: 2
+      x: -5.5
+      y: -2.4
+      width: 12.5
+      height: 0.25
+    Solid: 1
+    OneWay: 0
+    Color: {r: 0.28, g: 0.26, b: 0.33, a: 1}
+    SortingOrder: 0
+  - Name: Slab_2F_R
+    Bounds:
+      serializedVersion: 2
+      x: 8
+      y: -2.4
+      width: 1
+      height: 0.25
+    Solid: 1
+    OneWay: 0
+    Color: {r: 0.28, g: 0.26, b: 0.33, a: 1}
+    SortingOrder: 0
+  - Name: Slab_2F_Hatch
+    Bounds:
+      serializedVersion: 2
+      x: 7
+      y: -2.25
+      width: 1
+      height: 0.099999905
+    Solid: 1
+    OneWay: 1
+    Color: {r: 0.45, g: 0.36, b: 0.24, a: 1}
+    SortingOrder: 0
+  - Name: Slab_3F_L
+    Bounds:
+      serializedVersion: 2
+      x: -5.5
+      y: 0.45
+      width: 1
+      height: 0.25
+    Solid: 1
+    OneWay: 0
+    Color: {r: 0.28, g: 0.26, b: 0.33, a: 1}
+    SortingOrder: 0
+  - Name: Slab_3F_R
+    Bounds:
+      serializedVersion: 2
+      x: -3.5
+      y: 0.45
+      width: 12.5
+      height: 0.25
+    Solid: 1
+    OneWay: 0
+    Color: {r: 0.28, g: 0.26, b: 0.33, a: 1}
+    SortingOrder: 0
+  - Name: Slab_3F_Hatch
+    Bounds:
+      serializedVersion: 2
+      x: -4.5
+      y: 0.59999996
+      width: 1
+      height: 0.100000024
+    Solid: 1
+    OneWay: 1
+    Color: {r: 0.45, g: 0.36, b: 0.24, a: 1}
+    SortingOrder: 0
+  - Name: Slab_Roof_L
+    Bounds:
+      serializedVersion: 2
+      x: -5.5
+      y: 3.3
+      width: 12.5
+      height: 0.25
+    Solid: 1
+    OneWay: 0
+    Color: {r: 0.28, g: 0.26, b: 0.33, a: 1}
+    SortingOrder: 0
+  - Name: Slab_Roof_R
+    Bounds:
+      serializedVersion: 2
+      x: 8
+      y: 3.3
+      width: 1
+      height: 0.25
+    Solid: 1
+    OneWay: 0
+    Color: {r: 0.28, g: 0.26, b: 0.33, a: 1}
+    SortingOrder: 0
+  - Name: Slab_Roof_Hatch
+    Bounds:
+      serializedVersion: 2
+      x: 7
+      y: 3.45
+      width: 1
+      height: 0.099999905
+    Solid: 1
+    OneWay: 1
+    Color: {r: 0.45, g: 0.36, b: 0.24, a: 1}
+    SortingOrder: 0
+  - Name: Ladder_1F_B_Visual
+    Bounds:
+      serializedVersion: 2
+      x: 7.2
+      y: -5
+      width: 0.6000004
+      height: 2.85
+    Solid: 0
+    OneWay: 0
+    Color: {r: 0.55, g: 0.42, b: 0.25, a: 0.85}
+    SortingOrder: -5
+  - Name: Ladder_2F_A_Visual
+    Bounds:
+      serializedVersion: 2
+      x: -4.3
+      y: -2.15
+      width: 0.60000014
+      height: 2.8500001
+    Solid: 0
+    OneWay: 0
+    Color: {r: 0.55, g: 0.42, b: 0.25, a: 0.85}
+    SortingOrder: -5
+  - Name: Ladder_3F_B_Visual
+    Bounds:
+      serializedVersion: 2
+      x: 7.2
+      y: 0.7
+      width: 0.6000004
+      height: 2.85
+    Solid: 0
+    OneWay: 0
+    Color: {r: 0.55, g: 0.42, b: 0.25, a: 0.85}
+    SortingOrder: -5
+  _enemies:
+  - Kind: 0
+    Position: {x: -1, y: -5}
+    Facing: -1
+  - Kind: 0
+    Position: {x: 5, y: -5}
+    Facing: -1
+  - Kind: 0
+    Position: {x: -2.5, y: -2.15}
+    Facing: -1
+  - Kind: 0
+    Position: {x: 4.5, y: -2.15}
+    Facing: -1
+  - Kind: 0
+    Position: {x: -1, y: 0.7}
+    Facing: -1
+  - Kind: 0
+    Position: {x: 5, y: 0.7}
+    Facing: -1
+  _playerStart: {x: -8, y: -5}
+  _clearZoneId: ROOF

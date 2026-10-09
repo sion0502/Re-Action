@@ -1,0 +1,22 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 3de41c06a8f2fa443b3cd63082dd6609, type: 3}
+  m_Name: Action_WallClimb
+  m_EditorClassIdentifier: ReAction.Runtime::ReAction.Actions.ActionDefinition
+  _type: 11
+  _displayName: "\uBCBD \uD0C0\uAE30"
+  _animationState: WallSlide
+  _speed: 3
+  _verticalSpeed: 0
+  _distance: 0
+  _duration: 0
+  _timeout: 6

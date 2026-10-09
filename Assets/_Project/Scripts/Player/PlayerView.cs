@@ -1,24 +1,27 @@
+using ReAction.Actions;
 using ReAction.Core;
 using UnityEngine;
 
 namespace ReAction.Player
 {
     /// <summary>
-    /// 플레이어 표시 담당. 로직은 건드리지 않고 PlayerMotor 상태를 읽어 애니메이션과 좌우 반전만 갱신한다.
+    /// 플레이어 표시 담당. 로직은 건드리지 않고 PlayerMotor와 현재 행동을 읽어 애니메이션과 좌우 반전만 갱신한다.
     /// 애니메이션 속도는 월드 시간 배율을 따른다 (계획 중엔 아주 느리게, 사망 연출은 예외).
     /// </summary>
     public sealed class PlayerView : MonoBehaviour
     {
         private const float MoveThreshold = 0.1f;
         private const string DeathState = "Death";
+        private const string ClingState = "WallSlide";
 
         [SerializeField] private PlayerMotor _motor;
         [SerializeField] private Animator _animator;
         [SerializeField] private SpriteRenderer _renderer;
         [SerializeField] private GameController _game;
 
-        private string _actionState;
         private string _currentState;
+        private PlayerAction _shownAction;
+        private string _shownActionState;
 
         private void OnEnable()
         {
@@ -39,15 +42,6 @@ namespace ReAction.Player
             if (_game != null) OnStateChanged(_game.State, _game.State);
         }
 
-        /// <summary>행동이 지정한 애니메이션을 처음부터 재생한다. 비어 있으면 이동 상태 자동 선택.</summary>
-        public void PlayAction(string animationState)
-        {
-            _actionState = string.IsNullOrEmpty(animationState) ? null : animationState;
-            if (_actionState != null) Play(_actionState, restart: true);
-        }
-
-        public void ClearAction() => _actionState = null;
-
         private void OnStateChanged(GameState from, GameState to) => UpdateAnimatorSpeed();
 
         /// <summary>애니메이션도 월드 시간을 따른다 (계획 중엔 아주 느리게). 사망 연출만 예외로 정상 속도.</summary>
@@ -59,8 +53,9 @@ namespace ReAction.Player
 
         private void OnWorldReset()
         {
-            _actionState = null;
             _currentState = null;
+            _shownAction = null;
+            _shownActionState = null;
         }
 
         private void LateUpdate()
@@ -74,11 +69,23 @@ namespace ReAction.Player
                 Play(DeathState, restart: false);
                 return;
             }
-            Play(_actionState ?? PickLocomotionState(), restart: false);
+
+            // 행동이 바뀌거나 행동의 단계(다가가기 → 동작)가 바뀌면 그 애니메이션을 처음부터 재생한다.
+            var action = _game != null ? _game.CurrentAction : null;
+            string actionState = action?.AnimationState;
+            if (action != _shownAction || actionState != _shownActionState)
+            {
+                _shownAction = action;
+                _shownActionState = actionState;
+                if (actionState != null) Play(actionState, restart: true);
+            }
+
+            Play(actionState ?? PickLocomotionState(), restart: false);
         }
 
         private string PickLocomotionState()
         {
+            if (_motor.IsClinging) return ClingState;
             var v = _motor.Velocity;
             if (!_motor.IsGrounded) return v.y > 0f ? "Jump" : "Fall";
             return Mathf.Abs(v.x) > MoveThreshold ? "Run" : "Idle";

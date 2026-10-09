@@ -31,9 +31,10 @@ namespace ReAction.Enemies
         private void OnStateChanged(GameState from, GameState to) => UpdateAnimatorSpeed();
 
         // 적 애니메이션은 월드 시간 배율을 따른다 (계획 중엔 아주 느리게, 해석·사망 중엔 정지).
+        // 쓰러지는 동작만은 정상 속도로 끝까지 보여준다 (느리게 하면 서 있는 것처럼 보여 헷갈린다).
         private void UpdateAnimatorSpeed()
         {
-            if (_game != null) _animator.speed = _game.WorldTimeScale;
+            if (_game != null) _animator.speed = _enemy.IsDead ? 1f : _game.WorldTimeScale;
         }
 
         private void LateUpdate()

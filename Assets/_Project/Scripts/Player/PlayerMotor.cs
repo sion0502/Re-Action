@@ -24,6 +24,7 @@ namespace ReAction.Player
         private ContactFilter2D _groundFilter;
 
         private int _facing;
+        private float _gravityScale;
         private Vector2 _startPosition;
         private int _startFacing;
 
@@ -74,6 +75,21 @@ namespace ReAction.Player
         }
 
         public bool Invulnerable { get; set; }
+        public bool IsClinging { get; set; }
+
+        public bool GravityEnabled
+        {
+            get
+            {
+                Initialize();
+                return _body.gravityScale > 0f;
+            }
+            set
+            {
+                Initialize();
+                _body.gravityScale = value ? _gravityScale : 0f;
+            }
+        }
 
         public PhysicsScene2D PhysicsScene => gameObject.scene.GetPhysicsScene2D();
         public bool IsDead { get; private set; }
@@ -103,6 +119,7 @@ namespace ReAction.Player
             if (_body != null) return;
             _body = GetComponent<Rigidbody2D>();
             _collider = GetComponent<Collider2D>();
+            _gravityScale = _body.gravityScale;
             _groundFilter = new ContactFilter2D { useTriggers = false };
             _facing = _initialFacing >= 0 ? 1 : -1;
         }
@@ -134,6 +151,8 @@ namespace ReAction.Player
             _body.linearVelocity = Vector2.zero;
             Facing = _startFacing;
             Invulnerable = false;
+            IsClinging = false;
+            GravityEnabled = true;
             IsDead = false;
             DeathCause = "";
         }

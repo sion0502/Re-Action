@@ -111,7 +111,7 @@ namespace ReAction.Editor
             TMP_FontAsset font)
         {
             var panel = CreateRect("DeathPanel", root, new Vector2(0.5f, 0.5f), new Vector2(0.5f, 0.5f),
-                new Vector2(0.5f, 0.5f), new Vector2(0f, 20f), new Vector2(180f, 64f));
+                new Vector2(0.5f, 0.5f), new Vector2(0f, 20f), new Vector2(220f, 64f));
             panel.gameObject.AddComponent<Image>().color = new Color(0f, 0f, 0f, 0.85f);
 
             var cause = CreateText("Cause", panel, font, MessageColor, TextAlignmentOptions.Center);
@@ -122,7 +122,7 @@ namespace ReAction.Editor
             buttonGo.name = "RestartButton";
             buttonGo.transform.SetParent(panel, false);
             Place((RectTransform)buttonGo.transform, new Vector2(0.5f, 0f), new Vector2(0.5f, 0f), new Vector2(0.5f, 0f),
-                new Vector2(0f, 8f), new Vector2(110f, 20f));
+                new Vector2(0f, 8f), new Vector2(150f, 20f));
             var button = buttonGo.GetComponent<Button>();
             var colors = button.colors;
             colors.normalColor = FieldColor;

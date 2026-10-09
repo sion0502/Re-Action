@@ -48,7 +48,7 @@
 - **스크립트 작성 → 컴파일 확인 → 에디터 작업** 순서를 지킨다. C# 파일을 수정한 뒤에는 MCP로 컴파일 완료/에러를 확인하고, 콘솔 에러가 0개일 때만 다음 단계로 넘어간다.
 - 기능을 만든 뒤에는 **플레이 모드로 직접 실행해 콘솔 로그로 검증**한다 (필요하면 `Debug.Log`에 `[PZ]` 접두사를 붙여 필터링). EditMode 테스트가 있으면 MCP로 실행한다.
 - 스테이지처럼 반복 생성·수정이 잦은 것은 MCP로 손으로 배치하기보다 **데이터(`StageDefinition`) + 빌더 코드**로 만들고, MCP로는 빌더를 실행·검증한다. 그래야 결과가 재현 가능하고 diff로 추적된다.
-  - 현재 빌더: 메뉴 `ReAction/Build Test Scene` (`Assets/Editor/TestSceneBuilder.cs`). 테스트 스테이지 데이터는 `Assets/Editor/TestStageData.cs`.
+  - 현재 빌더: 메뉴 `ReAction/Build Stage 1 Scene` (`Assets/Editor/StageSceneBuilder.cs`). 스테이지 1 데이터는 `Assets/Editor/Stage1Data.cs` (구역·지형·적 배치·카메라 위치). 문·창문은 구역 데이터에서 자동으로 만들어진다.
   - 빌더에서 새로 만든 에셋은 씬을 열기(`OpenScene`) **전에** `AssetDatabase.SaveAssets()`로 저장하고, 씬을 연 뒤 다시 불러서 참조한다. 저장 안 된 새 에셋은 씬 전환 때 언로드되어 참조가 조용히 빠진다.
   - 시간 지연·VHS 연출: 수치는 `ScriptableObjects/Fx/TimeFx.asset`, 볼륨은 `TimeDilationFx`가 런타임에 만들고, VHS는 `Renderer2D`의 Full Screen Pass(`Art/Shaders/Vhs.shader`, 전역 값 `_ReActionVhs`로 강도 조절). 연출은 판정에 영향을 주지 않는다. URP 필름 그레인은 화면 해상도 단위라 픽셀 아트와 안 맞으므로 거의 쓰지 않고, 노이즈는 셰이더에서 640×360 격자 단위로 만든다. 잔상(`AfterimageTrail`)은 원본 바로 아래 순서로 그려서 안개에 가려진 적의 잔상이 새지 않게 한다.
   - 물리 질의는 `Physics2D.*` 대신 몸체의 `PhysicsScene`으로 한다. 결정론 테스트는 열린 씬을 건드리지 않도록 미리보기 씬(별도 물리 씬)에서 `WorldSimulation`을 돌린다.
@@ -223,6 +223,8 @@ LLM/Mock 결과 → 검증 → 실행. 검사 항목:
   - 정문 열고 진입 / 정문 걷어차기 / 정문 부수기
   - 외벽 타고 2F 동쪽 창문 깨고 진입 (우회 루트)
 - 최소 2개 이상의 서로 다른 클리어 루트가 존재해야 한다.
+  - 구현(M5): 루트 A = 정문 → 1F-A → 1F-B → 사다리 → 2F-B → 실내 문 → 2F-A, 루트 B = 서쪽 외벽 타기 → 2층 창문 깨고 진입 → 2F-A. 이후 공통으로 2F-A → 사다리 → 3F-A → 3F-B → 사다리 → 옥상(클리어). 층 높이 2.6, 고블린 6마리. 문은 걷어차면 바로 너머의 적도 쓰러뜨린다.
+  - 해석기 수식어: "N초 동안", "N칸", "벽까지", "잠깐", "두 번"(반복, 행동 수에 셈), "천천히"(걷기), "빨리"(질주). 키워드는 `Data/mock_keywords.json`.
 - 적 타입 (첫 빌드): **근접 적 1종만** — 고블린(`Monsters Creatures Fantasy/Goblin`). 가까우면 일정 시간 후 공격.
   - 구현(M4): 같은 공간 구역 + 거리 6 + 높이 차 1 이내면 추격 → 1 이내에서 0.45초 예비 동작 → 사거리 1.3 판정 → 0.6초 회복. 수치는 `ScriptableObjects/Enemies/Goblin.asset`. 예비 동작 중에 구르기(무적)·베기·거리 벌리기로 대응할 수 있다.
   - 플레이어 베기(`SLASH`): 사거리 1.3, 동작 0.43초 중 30% 지점에서 판정, 맞으면 즉사.
