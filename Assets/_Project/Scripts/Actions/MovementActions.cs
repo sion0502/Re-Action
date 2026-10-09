@@ -84,7 +84,7 @@ namespace ReAction.Actions
         }
     }
 
-    /// <summary>정해진 시간 동안 빠르게 구른다.</summary>
+    /// <summary>정해진 시간 동안 빠르게 구른다. 구르는 동안은 공격을 피한다.</summary>
     public sealed class RollAction : PlayerAction
     {
         private int _sign;
@@ -94,6 +94,13 @@ namespace ReAction.Actions
         protected override void OnBegin(IActorBody body)
         {
             _sign = FaceRequestedDirection(body);
+            body.Invulnerable = true;
+        }
+
+        public override void End(IActorBody body)
+        {
+            base.End(body);
+            body.Invulnerable = false;
         }
 
         protected override void OnTick(IActorBody body)

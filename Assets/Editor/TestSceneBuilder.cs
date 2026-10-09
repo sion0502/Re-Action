@@ -3,6 +3,7 @@ using System.IO;
 using ReAction.Actions;
 using ReAction.Core;
 using ReAction.Player;
+using ReAction.Replay;
 using ReAction.Stage;
 using ReAction.UI;
 using UnityEditor;
@@ -48,8 +49,13 @@ namespace ReAction.Editor
             var controller = EnsurePlayerAnimator();
             var playerPrefab = BuildPlayerPrefab(controller, noFriction);
             var stageDefinition = WriteTestStage();
+            var goblinPrefab = EnemyBuilder.BuildGoblinPrefab(noFriction);
+            EnemyBuilder.EnsureSettings();
 
+            // 씬을 열면 저장 안 된 새 에셋이 언로드될 수 있다. 먼저 저장하고, 씬을 연 뒤 다시 불러 쓴다.
+            AssetDatabase.SaveAssets();
             var scene = EditorSceneManager.OpenScene(ScenePath, OpenSceneMode.Single);
+            var goblinSettings = EnemyBuilder.EnsureSettings();
             var gameRoot = FindOrCreateRoot("--- Game ---");
             for (int i = gameRoot.transform.childCount - 1; i >= 0; i--)
                 Object.DestroyImmediate(gameRoot.transform.GetChild(i).gameObject);
@@ -65,6 +71,8 @@ namespace ReAction.Editor
             SetRef(game, "_catalog", catalog);
             SetRef(game, "_player", player.GetComponent<PlayerMotor>());
             SetRef(game, "_playerView", player.GetComponent<PlayerView>());
+            SetRef(game, "_rewindPlayer", controllerGo.AddComponent<RewindPlayer>());
+            SetRef(player.GetComponent<PlayerView>(), "_game", game);
 
             var stageGo = new GameObject("StageController");
             stageGo.transform.SetParent(gameRoot.transform);
@@ -73,6 +81,14 @@ namespace ReAction.Editor
             SetRef(stage, "_game", game);
             SetRef(stage, "_player", player.GetComponent<PlayerMotor>());
             SetRef(stage, "_fogSprite", square);
+
+            var enemies = EnemyBuilder.Spawn(gameRoot.transform, stageDefinition, goblinPrefab, goblinSettings,
+                player.GetComponent<PlayerMotor>(), stage, game);
+            var gameSo = new SerializedObject(game);
+            var enemyList = gameSo.FindProperty("_enemies");
+            enemyList.arraySize = enemies.Length;
+            for (int i = 0; i < enemies.Length; i++) enemyList.GetArrayElementAtIndex(i).objectReferenceValue = enemies[i];
+            gameSo.ApplyModifiedPropertiesWithoutUndo();
 
             var uiGo = new GameObject("DebugUI");
             uiGo.transform.SetParent(gameRoot.transform);
@@ -160,7 +176,8 @@ namespace ReAction.Editor
                 visual.transform.SetParent(root.transform, false);
                 var renderer = visual.AddComponent<SpriteRenderer>();
                 renderer.sprite = LoadSprite(HeroSheetPath, "HeroKnight_0");
-                renderer.sortingOrder = 10;
+                // 플레이어는 항상 아는 존재라 안개(100)·구역 외곽선(110)보다 위에 그린다.
+                renderer.sortingOrder = 120;
                 var animator = visual.AddComponent<Animator>();
                 animator.runtimeAnimatorController = controller;
 
@@ -210,6 +227,7 @@ namespace ReAction.Editor
                 EnsureAction(ActionType.Jump, "점프", "", speed: 4f, verticalSpeed: 11f, distance: 0f, duration: 0f, timeout: 3f),
                 EnsureAction(ActionType.Roll, "구르기", "Roll", speed: 7f, verticalSpeed: 0f, distance: 0f, duration: 0.6f, timeout: 2f),
                 EnsureAction(ActionType.Wait, "대기", "", speed: 0f, verticalSpeed: 0f, distance: 0f, duration: 0.5f, timeout: 0f),
+                EnsureAction(ActionType.Slash, "베기", "Attack1", speed: 0f, verticalSpeed: 0f, distance: 1.3f, duration: 0.43f, timeout: 2f),
                 EnsureAction(ActionType.Turn, "방향 전환", "", speed: 0f, verticalSpeed: 0f, distance: 0f, duration: 0f, timeout: 0f),
             };
 

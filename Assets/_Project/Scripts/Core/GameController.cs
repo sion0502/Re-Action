@@ -2,13 +2,16 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using ReAction.Actions;
+using ReAction.Enemies;
 using ReAction.Player;
+using ReAction.Replay;
 using UnityEngine;
 
 namespace ReAction.Core
 {
     /// <summary>
-    /// 게임 루프의 중심. Planning 중에는 세계를 멈추고, Executing 중에만 고정 틱으로 행동과 물리를 진행한다.
+    /// 게임 루프의 중심. Planning 중에는 세계를 멈추고, Executing 중에만 고정 틱으로 월드를 진행한다.
+    /// 플레이어가 죽으면 Dead → Rewind(되감기 연출) → Reset(월드 초기화, 발견 정보는 유지) → Planning.
     /// </summary>
     public sealed class GameController : MonoBehaviour
     {
@@ -19,19 +22,33 @@ namespace ReAction.Core
         [SerializeField] private ActionCatalog _catalog;
         [SerializeField] private PlayerMotor _player;
         [SerializeField] private PlayerView _playerView;
+        [SerializeField] private List<MeleeEnemy> _enemies = new List<MeleeEnemy>();
+        [SerializeField] private RewindPlayer _rewindPlayer;
+
+        [Tooltip("사망 후 되감기 시작까지 멈춰 있는 시간 (초, 연출)")]
+        [SerializeField] private float _deathPauseSeconds = 0.6f;
 
         private readonly GameStateMachine _states = new GameStateMachine();
         private readonly DeterministicClock _clock = new DeterministicClock();
-        private readonly ActionExecutor _executor = new ActionExecutor();
+        private readonly WorldResetter _resetter = new WorldResetter();
+        private readonly RewindRecorder _recorder = new RewindRecorder();
+        private WorldSimulation _sim;
 
         private bool _settling;
         private int _settleTicks;
         private int _groundedTicks;
+        private float _deadTimer;
 
         public GameState State => _states.Current;
-        public int Tick => _clock.Tick;
+        public int Tick => _sim?.Tick ?? 0;
         public ActionCatalog Catalog => _catalog;
-        public PlayerAction CurrentAction => _executor.Current;
+        public PlayerAction CurrentAction => _sim?.Executor.Current;
+
+        /// <summary>몇 번째 시도인지 (1부터).</summary>
+        public int Attempt { get; private set; } = 1;
+
+        /// <summary>마지막 사망 원인 (리셋 후에도 다음 사망 전까지 유지).</summary>
+        public string LastDeathCause { get; private set; } = "";
 
         /// <summary>마지막 실행 결과를 사람이 읽을 수 있게 요약한 문자열.</summary>
         public string LastResult { get; private set; } = "";
@@ -48,25 +65,43 @@ namespace ReAction.Core
         /// <summary>시뮬레이션 틱 하나가 끝날 때마다 (물리 진행 후). 인자는 틱 번호.</summary>
         public event Action<int> Ticked;
 
+        /// <summary>사망 후 월드가 초기 상태로 돌아갔을 때.</summary>
+        public event Action WorldReset;
+
         private void Awake()
         {
             Physics2D.simulationMode = SimulationMode2D.Script;
 
-            _states.Changed += (from, to) => PzLog.Info($"State {from} -> {to} (tick {_clock.Tick})");
-            _executor.ActionStarted += OnActionStarted;
-            _executor.ActionFinished += OnActionFinished;
-            _executor.QueueFinished += OnQueueFinished;
+            _sim = new WorldSimulation(_player);
+            _sim.Ticked += OnSimTicked;
+            _sim.Executor.ActionStarted += OnActionStarted;
+            _sim.Executor.ActionFinished += OnActionFinished;
+            _sim.Executor.QueueFinished += OnQueueFinished;
+
+            _resetter.Register(_player);
+            AddRewindTrack(_player.transform);
+            foreach (var enemy in _enemies)
+            {
+                if (enemy == null) continue;
+                _sim.Register(enemy);
+                _resetter.Register(enemy);
+                AddRewindTrack(enemy.transform);
+            }
+
+            _states.Changed += (from, to) => PzLog.Info($"State {from} -> {to} (tick {Tick}, attempt {Attempt})");
         }
 
         private void Start()
         {
+            _resetter.CaptureAll();
+            _recorder.Record();
             _states.TryTransition(GameState.Planning);
         }
 
         /// <summary>Planning → Interpreting. 해석 중에는 다른 입력을 받지 않는다.</summary>
         public bool TryBeginInterpreting() => _states.TryTransition(GameState.Interpreting);
 
-        /// <summary>Interpreting → Planning (해석 결과를 미리보기로 보여주거나 실패했을 때).</summary>
+        /// <summary>Interpreting → Planning (해석 실패 등).</summary>
         public void EndInterpreting()
         {
             if (_states.Current == GameState.Interpreting) _states.TryTransition(GameState.Planning);
@@ -108,13 +143,14 @@ namespace ReAction.Core
                 actions.Add(action);
             }
 
-            if (!_executor.TryStart(actions))
+            if (!_sim.Executor.TryStart(actions))
             {
                 error = "행동을 시작하지 못했다";
                 return false;
             }
 
             LastResult = "";
+            LastRunFailed = false;
             _settling = false;
             _clock.Pause();
             _states.TryTransition(GameState.Executing);
@@ -122,24 +158,43 @@ namespace ReAction.Core
             return true;
         }
 
+        /// <summary>되감기 연출을 즉시 끝낸다 (검증용).</summary>
+        public void SkipRewind() => _rewindPlayer.Skip();
+
         private void Update()
         {
-            if (_states.Current != GameState.Executing) return;
+            switch (_states.Current)
+            {
+                case GameState.Executing:
+                    int steps = _clock.Advance(Time.deltaTime);
+                    for (int i = 0; i < steps && _states.Current == GameState.Executing; i++)
+                        SimulateTick();
+                    break;
 
-            int steps = _clock.Advance(Time.deltaTime);
-            for (int i = 0; i < steps && _states.Current == GameState.Executing; i++)
-                SimulateTick();
+                case GameState.Dead:
+                    _deadTimer -= Time.deltaTime;
+                    if (_deadTimer <= 0f && _states.TryTransition(GameState.Rewind))
+                        _rewindPlayer.Play(_recorder, OnRewindFinished);
+                    break;
+            }
         }
 
         private void SimulateTick()
         {
-            if (_executor.IsRunning) _executor.Tick(_player);
+            _sim.Step();
 
-            Physics2D.Simulate(DeterministicClock.TickDuration);
-            _clock.Step();
-            Ticked?.Invoke(_clock.Tick);
-
+            if (_player.IsDead)
+            {
+                OnPlayerDied();
+                return;
+            }
             if (_settling) UpdateSettle();
+        }
+
+        private void OnSimTicked(int tick)
+        {
+            _recorder.Record();
+            Ticked?.Invoke(tick);
         }
 
         private void UpdateSettle()
@@ -154,10 +209,45 @@ namespace ReAction.Core
             _states.TryTransition(GameState.Planning);
         }
 
+        private void OnPlayerDied()
+        {
+            _sim.Executor.Cancel();
+            _playerView.ClearAction();
+            _settling = false;
+            _clock.Pause();
+            _deadTimer = _deathPauseSeconds;
+            LastDeathCause = _player.DeathCause;
+            LastResult += $"죽었다: {_player.DeathCause}\n";
+            _states.TryTransition(GameState.Dead);
+        }
+
+        private void OnRewindFinished()
+        {
+            _states.TryTransition(GameState.Reset);
+
+            // 월드 상태만 초기화한다. 발견한 구역(ZoneKnowledge)은 플레이어 지식이라 건드리지 않는다.
+            _resetter.ResetAll();
+            _sim.Executor.Cancel();
+            _sim.ResetTicks();
+            _recorder.Clear();
+            _recorder.Record();
+            Attempt++;
+            WorldReset?.Invoke();
+
+            _states.TryTransition(GameState.Planning);
+        }
+
+        private void AddRewindTrack(Transform root)
+        {
+            var renderer = root.GetComponentInChildren<SpriteRenderer>();
+            var animator = root.GetComponentInChildren<Animator>();
+            if (renderer != null && animator != null) _recorder.AddTrack(new RewindTrack(root, renderer, animator));
+        }
+
         private void OnActionStarted(PlayerAction action, int index)
         {
             _playerView.PlayAction(action.Definition.AnimationState);
-            PzLog.Info($"  [{index + 1}] {action} start (tick {_clock.Tick})");
+            PzLog.Info($"  [{index + 1}] {action} start (tick {Tick})");
         }
 
         private void OnActionFinished(PlayerAction action, int index)
@@ -171,7 +261,7 @@ namespace ReAction.Core
         private void OnQueueFinished(bool allSucceeded)
         {
             LastRunFailed = !allSucceeded;
-            if (_executor.CancelledCount > 0) LastResult += $"남은 행동 {_executor.CancelledCount}개는 취소됨\n";
+            if (_sim.Executor.CancelledCount > 0) LastResult += $"남은 행동 {_sim.Executor.CancelledCount}개는 취소됨\n";
             _settling = true;
             _settleTicks = 0;
             _groundedTicks = 0;

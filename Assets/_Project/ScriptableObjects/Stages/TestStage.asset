@@ -234,5 +234,12 @@ MonoBehaviour:
     Solid: 1
     Color: {r: 0.5, g: 0.42, b: 0.32, a: 1}
     SortingOrder: 0
+  _enemies:
+  - Kind: 0
+    Position: {x: 1.3, y: -4}
+    Facing: -1
+  - Kind: 0
+    Position: {x: 6.8, y: -4}
+    Facing: -1
   _playerStart: {x: -7, y: -4}
   _clearZoneId: ROOF

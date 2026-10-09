@@ -49,6 +49,8 @@
 - 기능을 만든 뒤에는 **플레이 모드로 직접 실행해 콘솔 로그로 검증**한다 (필요하면 `Debug.Log`에 `[PZ]` 접두사를 붙여 필터링). EditMode 테스트가 있으면 MCP로 실행한다.
 - 스테이지처럼 반복 생성·수정이 잦은 것은 MCP로 손으로 배치하기보다 **데이터(`StageDefinition`) + 빌더 코드**로 만들고, MCP로는 빌더를 실행·검증한다. 그래야 결과가 재현 가능하고 diff로 추적된다.
   - 현재 빌더: 메뉴 `ReAction/Build Test Scene` (`Assets/Editor/TestSceneBuilder.cs`). 테스트 스테이지 데이터는 `Assets/Editor/TestStageData.cs`.
+  - 빌더에서 새로 만든 에셋은 씬을 열기(`OpenScene`) **전에** `AssetDatabase.SaveAssets()`로 저장하고, 씬을 연 뒤 다시 불러서 참조한다. 저장 안 된 새 에셋은 씬 전환 때 언로드되어 참조가 조용히 빠진다.
+  - 물리 질의는 `Physics2D.*` 대신 몸체의 `PhysicsScene`으로 한다. 결정론 테스트는 열린 씬을 건드리지 않도록 미리보기 씬(별도 물리 씬)에서 `WorldSimulation`을 돌린다.
 - 에디터 창에 포커스가 없으면 플레이 모드 프레임이 거의 진행되지 않는다. 검증할 때는 `EditorApplication.isPaused = true` 후 `EditorApplication.Step()`으로 프레임을 직접 넘긴다. 이 방식에서는 마우스 클릭(`wasPressedThisFrame`)이 전달되지 않으므로, 입력 처리는 `ZoneSelector.ClickAt`처럼 직접 호출 가능한 메서드로 분리해 둔다. 검증 후 `isPaused = false`로 되돌린다.
 - 씬/프리팹 변경 후에는 반드시 저장한다. 큰 씬 구조 변경 전에는 무엇을 바꿀지 먼저 요약한다.
 - `.meta` 파일은 직접 만들거나 수정하지 않는다. 에셋 생성·이동·삭제는 MCP(에디터 API)를 통해 해서 GUID가 깨지지 않게 한다.
@@ -221,6 +223,8 @@ LLM/Mock 결과 → 검증 → 실행. 검사 항목:
   - 외벽 타고 2F 동쪽 창문 깨고 진입 (우회 루트)
 - 최소 2개 이상의 서로 다른 클리어 루트가 존재해야 한다.
 - 적 타입 (첫 빌드): **근접 적 1종만** — 고블린(`Monsters Creatures Fantasy/Goblin`). 가까우면 일정 시간 후 공격.
+  - 구현(M4): 같은 공간 구역 + 거리 6 + 높이 차 1 이내면 추격 → 1 이내에서 0.45초 예비 동작 → 사거리 1.3 판정 → 0.6초 회복. 수치는 `ScriptableObjects/Enemies/Goblin.asset`. 예비 동작 중에 구르기(무적)·베기·거리 벌리기로 대응할 수 있다.
+  - 플레이어 베기(`SLASH`): 사거리 1.3, 동작 0.43초 중 30% 지점에서 판정, 맞으면 즉사.
   - 원거리 적(예고선 후 발사 → 구르기/슬라이드로 회피)은 첫 빌드가 돌아간 뒤 추가. 에셋에 총·투사체가 없으므로 어떤 몬스터로 할지 그때 정한다. `EnemyBase`는 원거리 적을 붙일 수 있게 설계해 둔다.
 - 적은 Planning 중엔 정지, Executing 중에만 행동. 적 반응 타이밍은 고정값(결정론).
 - 스테이지 데이터는 하드코딩하지 말고 `StageDefinition`(ScriptableObject 또는 JSON)으로 정의: Zone 목록, 연결 관계, 어포던스, 적 스폰, 클리어 Zone.

@@ -80,7 +80,7 @@ SpriteRenderer:
   m_GlobalIlluminationMeshLod: 0
   m_SortingLayerID: 0
   m_SortingLayer: 0
-  m_SortingOrder: 10
+  m_SortingOrder: 120
   m_MaskInteraction: 0
   m_Sprite: {fileID: 21300000, guid: ae297123f091bbf4e8f1835eb98fb293, type: 3}
   m_Color: {r: 1, g: 1, b: 1, a: 1}
@@ -251,3 +251,4 @@ MonoBehaviour:
   _motor: {fileID: 3751457051351895800}
   _animator: {fileID: 4457028186801404126}
   _renderer: {fileID: 7876057718148917229}
+  _game: {fileID: 0}

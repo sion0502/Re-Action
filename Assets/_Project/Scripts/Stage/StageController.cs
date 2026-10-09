@@ -39,8 +39,17 @@ namespace ReAction.Stage
             CreateFog();
         }
 
-        private void OnEnable() => _game.Ticked += OnTicked;
-        private void OnDisable() => _game.Ticked -= OnTicked;
+        private void OnEnable()
+        {
+            _game.Ticked += OnTicked;
+            _game.WorldReset += UpdatePlayerZone;
+        }
+
+        private void OnDisable()
+        {
+            _game.Ticked -= OnTicked;
+            _game.WorldReset -= UpdatePlayerZone;
+        }
 
         private void Start() => UpdatePlayerZone();
 

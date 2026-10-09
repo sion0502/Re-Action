@@ -67,7 +67,15 @@ namespace ReAction.Editor
                 Block("Crate_1F_B", Box(4.5f, -4f, 5.5f, -3f), Crate),
             };
 
-            definition.EditorSet(zones, blocks, playerStart: new Vector2(-7f, -4f), clearZoneId: "ROOF");
+            var enemies = new List<EnemySpawn>
+            {
+                // 1F-A: 상자 너머에서 기다린다. 상자를 넘으면 바로 마주친다.
+                new EnemySpawn { Kind = EnemyKind.Goblin, Position = new Vector2(1.3f, -4f), Facing = -1 },
+                // 1F-B 안쪽
+                new EnemySpawn { Kind = EnemyKind.Goblin, Position = new Vector2(6.8f, -4f), Facing = -1 },
+            };
+
+            definition.EditorSet(zones, blocks, enemies, playerStart: new Vector2(-7f, -4f), clearZoneId: "ROOF");
         }
 
         private static Rect Box(float xMin, float yMin, float xMax, float yMax) =>

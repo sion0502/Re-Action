@@ -50,10 +50,21 @@ namespace ReAction.UI
 
             KeepInputFocused();
 
-            // 구역 이름은 보여주지 않는다. 목표가 정해졌는지만 알려준다.
-            _status.text = _game.State == GameState.Planning
-                ? (_selector.SelectedId != null ? "계획 중 · 목표 지정됨" : "계획 중 · 목표를 클릭하세요")
-                : _game.State == GameState.Executing ? "실행 중" : "";
+            _status.text = $"시도 #{_game.Attempt} · {StatusText()}";
+        }
+
+        private string StatusText()
+        {
+            switch (_game.State)
+            {
+                // 구역 이름은 보여주지 않는다. 목표가 정해졌는지만 알려준다.
+                case GameState.Planning:
+                    return _selector.SelectedId != null ? "계획 중 · 목표 지정됨" : "계획 중 · 목표를 클릭하세요";
+                case GameState.Executing: return "실행 중";
+                case GameState.Dead: return $"죽었다 - {_game.LastDeathCause}";
+                case GameState.Rewind: return "되감는 중 (클릭: 건너뛰기)";
+                default: return "";
+            }
         }
 
         /// <summary>
@@ -100,6 +111,11 @@ namespace ReAction.UI
 
             // 실행 중 실패한 행동이 있으면 이유를 보여준다. 다음 입력을 시작하면 지워진다.
             if (from == GameState.Executing && _game.LastRunFailed) _message.text = _game.LastResult.TrimEnd();
+            if (from == GameState.Reset)
+            {
+                _planning.ClearFeedback();
+                _message.text = $"{_game.LastDeathCause}. 처음부터 다시";
+            }
         }
 
         private void Refresh()

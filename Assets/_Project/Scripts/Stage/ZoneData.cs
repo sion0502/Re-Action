@@ -41,6 +41,20 @@ namespace ReAction.Stage
         public float Area => Bounds.width * Bounds.height;
     }
 
+    public enum EnemyKind
+    {
+        Goblin,
+    }
+
+    /// <summary>적 배치. 위치는 발 기준, Facing은 -1(왼쪽) 또는 1(오른쪽).</summary>
+    [Serializable]
+    public sealed class EnemySpawn
+    {
+        public EnemyKind Kind;
+        public Vector2 Position;
+        public int Facing = -1;
+    }
+
     /// <summary>스테이지 지형 블록. Solid가 아니면 배경 장식이다.</summary>
     [Serializable]
     public sealed class BlockData
