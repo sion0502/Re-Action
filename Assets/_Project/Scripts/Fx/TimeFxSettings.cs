@@ -40,9 +40,6 @@ namespace ReAction.Fx
         public float PlanningGhostSeconds = 2.5f;
         [Tooltip("잔상이 수명의 이 비율까지는 진하게 유지되다가 그 뒤로 서서히 사라진다")]
         [Range(0f, 0.95f)] public float GhostHoldFraction = 0.4f;
-        [Tooltip("되감기 중 잔상 간격 / 수명 (초)")]
-        public float RewindGhostInterval = 0.04f;
-        public float RewindGhostSeconds = 0.3f;
         [Range(0f, 1f)] public float GhostAlpha = 0.4f;
         [Tooltip("잔상의 빨강/청록 분리 최대 거리 (픽셀)")]
         public int GhostSplitPixels = 2;

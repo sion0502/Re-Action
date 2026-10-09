@@ -7,7 +7,7 @@ namespace ReAction.Fx
     /// 스프라이트 잔상 (트레일·고스팅·색수차 잔상). 연출 전용.
     /// - 실행 중: 최근 움직임을 기억만 해 두고, 계획으로 들어가는 순간 그 궤적을 잔상으로 남긴다.
     /// - 계획 중: 현재 자세에서 잔상이 주기적으로 피어나며 빨강/청록으로 벌어지면서 사라진다.
-    /// - 되감기 중: 촘촘한 잔상이 짧게 남는다.
+    /// 잔상은 프롬프트를 입력하는 계획 중에만 보인다. 계획을 벗어나는 순간(실행·사망·되감기) 모두 지운다.
     /// 잔상은 원본보다 바로 아래 그리기 순서를 써서, 안개(위)에 가려진 적의 잔상이 새어 나오지 않는다.
     /// </summary>
     [RequireComponent(typeof(SpriteRenderer))]
@@ -70,6 +70,7 @@ namespace ReAction.Fx
 
             if (mode != _lastMode)
             {
+                if (_lastMode == TimeFxMode.Planning) HideAll();
                 if (mode == TimeFxMode.Planning && _lastMode == TimeFxMode.None) EmitHistory(settings);
                 if (mode != TimeFxMode.None) _history.Clear();
                 _lastMode = mode;
@@ -83,9 +84,6 @@ namespace ReAction.Fx
                     break;
                 case TimeFxMode.Planning:
                     EmitEvery(settings.PlanningGhostInterval, settings.PlanningGhostSeconds, settings.GhostAlpha);
-                    break;
-                case TimeFxMode.Rewind:
-                    EmitEvery(settings.RewindGhostInterval, settings.RewindGhostSeconds, settings.GhostAlpha * 0.8f);
                     break;
             }
 
@@ -174,6 +172,15 @@ namespace ReAction.Fx
                 ghost.Main.color = new Color(1f, 1f, 1f, alpha * 0.6f);
                 ghost.Red.color = new Color(RedTint.r, RedTint.g, RedTint.b, alpha);
                 ghost.Cyan.color = new Color(CyanTint.r, CyanTint.g, CyanTint.b, alpha);
+            }
+        }
+
+        private void HideAll()
+        {
+            foreach (var ghost in _pool)
+            {
+                ghost.Active = false;
+                ghost.Root.gameObject.SetActive(false);
             }
         }
 
