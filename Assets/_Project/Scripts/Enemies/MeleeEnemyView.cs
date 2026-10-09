@@ -28,15 +28,18 @@ namespace ReAction.Enemies
             if (_game != null) OnStateChanged(_game.State, _game.State);
         }
 
-        private void OnStateChanged(GameState from, GameState to)
+        private void OnStateChanged(GameState from, GameState to) => UpdateAnimatorSpeed();
+
+        // 적 애니메이션은 월드 시간 배율을 따른다 (계획 중엔 아주 느리게, 해석·사망 중엔 정지).
+        private void UpdateAnimatorSpeed()
         {
-            // 계획 중에는 세계가 멈춘다. 적 애니메이션도 실행 중에만 움직인다.
-            _animator.speed = to == GameState.Executing ? 1f : 0f;
+            if (_game != null) _animator.speed = _game.WorldTimeScale;
         }
 
         private void LateUpdate()
         {
             if (!_animator.enabled) return; // 되감기 중에는 기록된 스프라이트를 그대로 보여준다
+            UpdateAnimatorSpeed();
             _renderer.flipX = _enemy.Facing < 0;
             if (_enemy.StateVersion == _shownVersion) return;
 

@@ -111,6 +111,62 @@ namespace ReAction.Tests
         }
 
         [Test]
+        public void PlansSubmittedAtSameTicks_WithIdlePlanningTime_ProduceIdenticalTrace()
+        {
+            // 계획 중에도 시간이 흐른다: (대기 틱, 행동) 쌍이 같으면 결과도 같아야 한다.
+            var first = RunWithPlanningGaps();
+            _resetter.ResetAll();
+            _sim.ResetTicks();
+            var second = RunWithPlanningGaps();
+
+            Assert.That(second, Is.EqualTo(first));
+        }
+
+        [Test]
+        public void IdlePlanningTicks_AdvanceTheWorld()
+        {
+            var goblinStart = _goblin.Position;
+            for (int i = 0; i < 30; i++) _sim.Step();
+            Assert.That(_goblin.Position.x, Is.LessThan(goblinStart.x), "goblin keeps approaching while the player plans");
+        }
+
+        private List<string> RunWithPlanningGaps()
+        {
+            var trace = new List<string>();
+            Idle(12, trace);
+            ExecutePlan(trace, new ActionRequest(ActionType.Roll, Direction.Left));
+            Idle(5, trace);
+            ExecutePlan(trace, new ActionRequest(ActionType.Run, Direction.Right), new ActionRequest(ActionType.Slash));
+            Idle(60, trace);
+            return trace;
+        }
+
+        /// <summary>행동 없이 틱만 진행 (계획 중 느린 시간에 해당).</summary>
+        private void Idle(int ticks, List<string> trace)
+        {
+            for (int i = 0; i < ticks; i++) StepAndTrace(trace);
+        }
+
+        /// <summary>행동을 시작하고 끝날 때까지 진행.</summary>
+        private void ExecutePlan(List<string> trace, params ActionRequest[] plan)
+        {
+            var actions = new List<PlayerAction>();
+            foreach (var request in plan) actions.Add(ActionFactory.Create(request, _catalog));
+            if (!_player.IsDead) Assert.That(_sim.Executor.TryStart(actions), Is.True);
+            for (int i = 0; i < 180 && _sim.Executor.IsRunning; i++) StepAndTrace(trace);
+        }
+
+        private void StepAndTrace(List<string> trace)
+        {
+            _sim.Step();
+            trace.Add(string.Join("|",
+                _sim.Tick,
+                F(_player.Position.x), F(_player.Position.y), _player.Facing, _player.IsDead,
+                F(_goblin.Position.x), F(_goblin.Position.y), _goblin.State));
+            if (_player.IsDead) _sim.Executor.Cancel();
+        }
+
+        [Test]
         public void Reset_RestoresWorld_ButKeepsRevealedZones()
         {
             var graph = new ZoneGraph(new List<ZoneData>

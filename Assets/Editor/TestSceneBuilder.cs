@@ -2,6 +2,7 @@ using System.Collections.Generic;
 using System.IO;
 using ReAction.Actions;
 using ReAction.Core;
+using ReAction.Fx;
 using ReAction.Player;
 using ReAction.Replay;
 using ReAction.Stage;
@@ -51,11 +52,14 @@ namespace ReAction.Editor
             var stageDefinition = WriteTestStage();
             var goblinPrefab = EnemyBuilder.BuildGoblinPrefab(noFriction);
             EnemyBuilder.EnsureSettings();
+            FxBuilder.EnsureSettings();
+            FxBuilder.EnsureVhsFeature();
 
             // 씬을 열면 저장 안 된 새 에셋이 언로드될 수 있다. 먼저 저장하고, 씬을 연 뒤 다시 불러 쓴다.
             AssetDatabase.SaveAssets();
             var scene = EditorSceneManager.OpenScene(ScenePath, OpenSceneMode.Single);
             var goblinSettings = EnemyBuilder.EnsureSettings();
+            var fxSettings = FxBuilder.EnsureSettings();
             var gameRoot = FindOrCreateRoot("--- Game ---");
             for (int i = gameRoot.transform.childCount - 1; i >= 0; i--)
                 Object.DestroyImmediate(gameRoot.transform.GetChild(i).gameObject);
@@ -110,6 +114,7 @@ namespace ReAction.Editor
             SetRef(planning, "_mockKeywords", AssetDatabase.LoadAssetAtPath<TextAsset>(MockKeywordsPath));
 
             PromptUIBuilder.Build(gameRoot.transform, game, planning, selector, PromptUIBuilder.EnsureFontAsset());
+            FxBuilder.Build(gameRoot.transform, game, fxSettings);
 
             EditorSceneManager.MarkSceneDirty(scene);
             EditorSceneManager.SaveScene(scene);
@@ -180,6 +185,7 @@ namespace ReAction.Editor
                 renderer.sortingOrder = 120;
                 var animator = visual.AddComponent<Animator>();
                 animator.runtimeAnimatorController = controller;
+                visual.AddComponent<AfterimageTrail>();
 
                 var view = root.AddComponent<PlayerView>();
                 SetRef(view, "_motor", motor);

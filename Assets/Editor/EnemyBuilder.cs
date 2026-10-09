@@ -2,6 +2,7 @@ using System.IO;
 using System.Linq;
 using ReAction.Core;
 using ReAction.Enemies;
+using ReAction.Fx;
 using ReAction.Player;
 using ReAction.Stage;
 using UnityEditor;
@@ -61,6 +62,7 @@ namespace ReAction.Editor
                 renderer.sortingOrder = 5;
                 var animator = visual.AddComponent<Animator>();
                 animator.runtimeAnimatorController = controller;
+                visual.AddComponent<AfterimageTrail>();
 
                 var view = root.AddComponent<MeleeEnemyView>();
                 SetRef(view, "_enemy", enemy);

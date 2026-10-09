@@ -11,7 +11,8 @@ namespace ReAction.Core
         private static readonly Dictionary<GameState, GameState[]> Allowed = new Dictionary<GameState, GameState[]>
         {
             { GameState.Boot, new[] { GameState.Planning } },
-            { GameState.Planning, new[] { GameState.Interpreting, GameState.Executing } },
+            // 계획 중에도 시간이 아주 느리게 흐르므로 그 사이에 죽을 수 있다
+            { GameState.Planning, new[] { GameState.Interpreting, GameState.Executing, GameState.Dead } },
             { GameState.Interpreting, new[] { GameState.Planning, GameState.Executing } },
             { GameState.Executing, new[] { GameState.Planning, GameState.Dead, GameState.Cleared } },
             { GameState.Dead, new[] { GameState.Rewind } },

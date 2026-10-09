@@ -131,6 +131,12 @@ namespace ReAction.UI
         private void OnStateChanged(GameState from, GameState to)
         {
             _input.interactable = to == GameState.Planning || to == GameState.Interpreting;
+            if (to == GameState.Dead)
+            {
+                // 입력하던 중에 죽었으면 쓰던 프롬프트는 버린다.
+                _input.text = "";
+                _planning.ClearFeedback();
+            }
             if (to != GameState.Planning) return;
             _input.ActivateInputField();
 

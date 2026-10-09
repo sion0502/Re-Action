@@ -50,6 +50,7 @@
 - 스테이지처럼 반복 생성·수정이 잦은 것은 MCP로 손으로 배치하기보다 **데이터(`StageDefinition`) + 빌더 코드**로 만들고, MCP로는 빌더를 실행·검증한다. 그래야 결과가 재현 가능하고 diff로 추적된다.
   - 현재 빌더: 메뉴 `ReAction/Build Test Scene` (`Assets/Editor/TestSceneBuilder.cs`). 테스트 스테이지 데이터는 `Assets/Editor/TestStageData.cs`.
   - 빌더에서 새로 만든 에셋은 씬을 열기(`OpenScene`) **전에** `AssetDatabase.SaveAssets()`로 저장하고, 씬을 연 뒤 다시 불러서 참조한다. 저장 안 된 새 에셋은 씬 전환 때 언로드되어 참조가 조용히 빠진다.
+  - 시간 지연·VHS 연출: 수치는 `ScriptableObjects/Fx/TimeFx.asset`, 볼륨은 `TimeDilationFx`가 런타임에 만들고, VHS는 `Renderer2D`의 Full Screen Pass(`Art/Shaders/Vhs.shader`, 전역 값 `_ReActionVhs`로 강도 조절). 연출은 판정에 영향을 주지 않는다. URP 필름 그레인은 화면 해상도 단위라 픽셀 아트와 안 맞으므로 거의 쓰지 않고, 노이즈는 셰이더에서 640×360 격자 단위로 만든다. 잔상(`AfterimageTrail`)은 원본 바로 아래 순서로 그려서 안개에 가려진 적의 잔상이 새지 않게 한다.
   - 물리 질의는 `Physics2D.*` 대신 몸체의 `PhysicsScene`으로 한다. 결정론 테스트는 열린 씬을 건드리지 않도록 미리보기 씬(별도 물리 씬)에서 `WorldSimulation`을 돌린다.
 - 에디터 창에 포커스가 없으면 플레이 모드 프레임이 거의 진행되지 않는다. 검증할 때는 `EditorApplication.isPaused = true` 후 `EditorApplication.Step()`으로 프레임을 직접 넘긴다. 이 방식에서는 마우스 클릭(`wasPressedThisFrame`)이 전달되지 않으므로, 입력 처리는 `ZoneSelector.ClickAt`처럼 직접 호출 가능한 메서드로 분리해 둔다. 검증 후 `isPaused = false`로 되돌린다.
 - 씬/프리팹 변경 후에는 반드시 저장한다. 큰 씬 구조 변경 전에는 무엇을 바꿀지 먼저 요약한다.

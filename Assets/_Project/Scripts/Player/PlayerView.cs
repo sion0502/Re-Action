@@ -5,7 +5,7 @@ namespace ReAction.Player
 {
     /// <summary>
     /// 플레이어 표시 담당. 로직은 건드리지 않고 PlayerMotor 상태를 읽어 애니메이션과 좌우 반전만 갱신한다.
-    /// 계획 중에는 세계가 멈추므로 애니메이션도 멈춘다 (사망 연출은 예외).
+    /// 애니메이션 속도는 월드 시간 배율을 따른다 (계획 중엔 아주 느리게, 사망 연출은 예외).
     /// </summary>
     public sealed class PlayerView : MonoBehaviour
     {
@@ -48,9 +48,13 @@ namespace ReAction.Player
 
         public void ClearAction() => _actionState = null;
 
-        private void OnStateChanged(GameState from, GameState to)
+        private void OnStateChanged(GameState from, GameState to) => UpdateAnimatorSpeed();
+
+        /// <summary>애니메이션도 월드 시간을 따른다 (계획 중엔 아주 느리게). 사망 연출만 예외로 정상 속도.</summary>
+        private void UpdateAnimatorSpeed()
         {
-            _animator.speed = to == GameState.Executing || to == GameState.Dead ? 1f : 0f;
+            if (_game == null) return;
+            _animator.speed = _game.State == GameState.Dead ? 1f : _game.WorldTimeScale;
         }
 
         private void OnWorldReset()
@@ -62,6 +66,7 @@ namespace ReAction.Player
         private void LateUpdate()
         {
             if (!_animator.enabled) return; // 되감기 중에는 기록된 스프라이트를 그대로 보여준다
+            UpdateAnimatorSpeed();
 
             _renderer.flipX = _motor.Facing < 0;
             if (_motor.IsDead)

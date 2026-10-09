@@ -92,7 +92,7 @@ namespace ReAction.Core
                 return;
             }
 
-            if (!_game.TryExecute(result.Actions, out var error))
+            if (!_game.TryExecute(result.Actions, out var error, prompt, request.TargetZoneId))
             {
                 SetMessage(error);
                 return;

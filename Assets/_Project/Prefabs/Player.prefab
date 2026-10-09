@@ -11,6 +11,7 @@ GameObject:
   - component: {fileID: 2065781336294196292}
   - component: {fileID: 7876057718148917229}
   - component: {fileID: 4457028186801404126}
+  - component: {fileID: 9040401889915223413}
   m_Layer: 0
   m_Name: Visual
   m_TagString: Untagged
@@ -114,6 +115,18 @@ Animator:
   m_AllowConstantClipSamplingOptimization: 1
   m_KeepAnimatorStateOnDisable: 0
   m_WriteDefaultValuesOnDisable: 0
+--- !u!114 &9040401889915223413
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 3877219088193175416}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 4e723bca3120c1345bb78e4a275bffd4, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: ReAction.Runtime::ReAction.Fx.AfterimageTrail
 --- !u!1 &6047413064514344935
 GameObject:
   m_ObjectHideFlags: 0

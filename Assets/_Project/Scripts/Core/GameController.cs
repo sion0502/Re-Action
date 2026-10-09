@@ -10,7 +10,8 @@ using UnityEngine;
 namespace ReAction.Core
 {
     /// <summary>
-    /// 게임 루프의 중심. Planning 중에는 세계를 멈추고, Executing 중에만 고정 틱으로 월드를 진행한다.
+    /// 게임 루프의 중심. 월드는 항상 고정 틱으로만 진행한다: Executing은 정상 속도, Planning은 아주 느리게
+    /// (_planningTimeScale), Interpreting과 그 밖의 상태는 정지.
     /// 플레이어가 죽으면 Dead(다시 시작 버튼 대기) → Rewind(되감기 연출) → Reset(월드 초기화, 발견 정보는 유지) → Planning.
     /// </summary>
     public sealed class GameController : MonoBehaviour
@@ -25,6 +26,9 @@ namespace ReAction.Core
         [SerializeField] private List<MeleeEnemy> _enemies = new List<MeleeEnemy>();
         [SerializeField] private RewindPlayer _rewindPlayer;
 
+        [Tooltip("계획(프롬프트 입력) 중 시간 배율. 0이면 완전 정지")]
+        [SerializeField, Range(0f, 0.2f)] private float _planningTimeScale = 0.03f;
+
         [Tooltip("사망 후 다시 시작 버튼을 누를 수 있게 되기까지의 시간 (초, 사망 연출이 보이도록)")]
         [SerializeField] private float _deathPauseSeconds = 0.6f;
 
@@ -32,6 +36,7 @@ namespace ReAction.Core
         private readonly DeterministicClock _clock = new DeterministicClock();
         private readonly WorldResetter _resetter = new WorldResetter();
         private readonly RewindRecorder _recorder = new RewindRecorder();
+        private readonly RunRecord _runRecord = new RunRecord();
         private WorldSimulation _sim;
 
         private bool _settling;
@@ -43,6 +48,23 @@ namespace ReAction.Core
         public int Tick => _sim?.Tick ?? 0;
         public ActionCatalog Catalog => _catalog;
         public PlayerAction CurrentAction => _sim?.Executor.Current;
+
+        /// <summary>이번 시도에서 실행한 프롬프트 기록.</summary>
+        public RunRecord RunRecord => _runRecord;
+
+        /// <summary>지금 월드 시간이 흐르는 배율 (연출용). 실행 1, 계획 중 아주 느리게, 그 밖은 0.</summary>
+        public float WorldTimeScale
+        {
+            get
+            {
+                switch (_states.Current)
+                {
+                    case GameState.Executing: return 1f;
+                    case GameState.Planning: return _planningTimeScale;
+                    default: return 0f;
+                }
+            }
+        }
 
         /// <summary>몇 번째 시도인지 (1부터).</summary>
         public int Attempt { get; private set; } = 1;
@@ -91,7 +113,12 @@ namespace ReAction.Core
                 AddRewindTrack(enemy.transform);
             }
 
-            _states.Changed += (from, to) => PzLog.Info($"State {from} -> {to} (tick {Tick}, attempt {Attempt})");
+            _states.Changed += (from, to) =>
+            {
+                // 상태가 바뀌면 시간 배율이 달라지므로 남은 누적 시간을 버린다.
+                _clock.Pause();
+                PzLog.Info($"State {from} -> {to} (tick {Tick}, attempt {Attempt})");
+            };
         }
 
         private void Start()
@@ -114,7 +141,8 @@ namespace ReAction.Core
         /// Planning 중에 행동 목록을 실행한다. 실패하면 false와 플레이어에게 보여줄 이유를 돌려준다.
         /// 실패한 요청은 세계를 전혀 바꾸지 않는다.
         /// </summary>
-        public bool TryExecute(IReadOnlyList<ActionRequest> requests, out string error)
+        public bool TryExecute(IReadOnlyList<ActionRequest> requests, out string error,
+            string prompt = null, string targetZoneId = null)
         {
             error = null;
             if (_states.Current != GameState.Planning)
@@ -152,12 +180,12 @@ namespace ReAction.Core
                 return false;
             }
 
+            _runRecord.Add(new PlanRecord(Tick, prompt, targetZoneId, requests));
             LastResult = "";
             LastRunFailed = false;
             _settling = false;
-            _clock.Pause();
             _states.TryTransition(GameState.Executing);
-            PzLog.Info($"Execute [{string.Join(", ", requests)}]");
+            PzLog.Info($"Execute at tick {Tick} [{string.Join(", ", requests)}]");
             return true;
         }
 
@@ -179,8 +207,10 @@ namespace ReAction.Core
             switch (_states.Current)
             {
                 case GameState.Executing:
-                    int steps = _clock.Advance(Time.deltaTime);
-                    for (int i = 0; i < steps && _states.Current == GameState.Executing; i++)
+                case GameState.Planning:
+                    var state = _states.Current;
+                    int steps = _clock.Advance(Time.deltaTime * WorldTimeScale);
+                    for (int i = 0; i < steps && _states.Current == state; i++)
                         SimulateTick();
                     break;
 
@@ -217,7 +247,6 @@ namespace ReAction.Core
 
             _settling = false;
             _player.Velocity = Vector2.zero;
-            _clock.Pause();
             _states.TryTransition(GameState.Planning);
         }
 
@@ -226,7 +255,6 @@ namespace ReAction.Core
             _sim.Executor.Cancel();
             _playerView.ClearAction();
             _settling = false;
-            _clock.Pause();
             _deadTimer = _deathPauseSeconds;
             LastDeathCause = _player.DeathCause;
             LastResult += $"죽었다: {_player.DeathCause}\n";
@@ -243,6 +271,7 @@ namespace ReAction.Core
             _sim.ResetTicks();
             _recorder.Clear();
             _recorder.Record();
+            _runRecord.Clear();
             Attempt++;
             WorldReset?.Invoke();
 
