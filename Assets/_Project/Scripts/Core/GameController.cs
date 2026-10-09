@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Linq;
 using ReAction.Actions;
 using ReAction.Player;
 using UnityEngine;
@@ -88,9 +89,10 @@ namespace ReAction.Core
                 error = "행동을 하나 이상 입력하세요";
                 return false;
             }
-            if (requests.Count > ActionExecutor.MaxActionsPerPrompt)
+            int counted = ActionRules.CountTowardLimit(requests.Select(r => r.Type));
+            if (counted > ActionExecutor.MaxActionsPerPrompt)
             {
-                error = $"행동이 {requests.Count}개입니다. {ActionExecutor.MaxActionsPerPrompt}개 이하로 줄여주세요";
+                error = $"행동이 {counted}개입니다. {ActionExecutor.MaxActionsPerPrompt}개 이하로 줄여주세요";
                 return false;
             }
 

@@ -210,6 +210,7 @@ namespace ReAction.Editor
                 EnsureAction(ActionType.Jump, "점프", "", speed: 4f, verticalSpeed: 11f, distance: 0f, duration: 0f, timeout: 3f),
                 EnsureAction(ActionType.Roll, "구르기", "Roll", speed: 7f, verticalSpeed: 0f, distance: 0f, duration: 0.6f, timeout: 2f),
                 EnsureAction(ActionType.Wait, "대기", "", speed: 0f, verticalSpeed: 0f, distance: 0f, duration: 0.5f, timeout: 0f),
+                EnsureAction(ActionType.Turn, "방향 전환", "", speed: 0f, verticalSpeed: 0f, distance: 0f, duration: 0f, timeout: 0f),
             };
 
             var catalog = AssetDatabase.LoadAssetAtPath<ActionCatalog>(CatalogPath);

@@ -16,6 +16,7 @@ namespace ReAction.Actions
                 case ActionType.Jump: return new JumpAction(definition, request);
                 case ActionType.Roll: return new RollAction(definition, request);
                 case ActionType.Wait: return new WaitAction(definition, request);
+                case ActionType.Turn: return new TurnAction(definition, request);
                 default: return null;
             }
         }

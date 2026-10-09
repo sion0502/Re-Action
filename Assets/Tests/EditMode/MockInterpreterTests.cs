@@ -88,6 +88,32 @@ namespace ReAction.Tests
         }
 
         [Test]
+        public void TurnAround_IsFreeAndNotCounted()
+        {
+            var r = Interpret("뒤돌아서 문을 걷어차고 들어가서 구르기");
+
+            Assert.That(Types(r), Is.EqualTo(new[]
+                { ActionType.Turn, ActionType.KickDoor, ActionType.Enter, ActionType.Roll }));
+            Assert.That(r.OverLimit, Is.False);
+        }
+
+        [Test]
+        public void TurnToSide_TakesDirection()
+        {
+            var r = Interpret("오른쪽을 보고 점프");
+
+            Assert.That(Types(r), Is.EqualTo(new[] { ActionType.Turn, ActionType.Jump }));
+            Assert.That(r.Actions[0].Direction, Is.EqualTo(Direction.Right));
+        }
+
+        [Test]
+        public void FourCountedActionsPlusTurn_StillOverLimit()
+        {
+            var r = Interpret("뒤돌아서 문을 걷어차고 들어가서 구르고 공격");
+            Assert.That(r.OverLimit, Is.True);
+        }
+
+        [Test]
         public void UnknownPrompt_NoActionsWithNotes()
         {
             var r = Interpret("안녕하세요");

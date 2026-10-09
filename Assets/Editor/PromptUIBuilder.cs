@@ -118,6 +118,8 @@ namespace ReAction.Editor
             input.characterLimit = 80;
             input.richText = false;
             input.restoreOriginalTextOnEscape = false;
+            // 포커스를 자동으로 다시 잡을 때 쓰던 글자가 전체 선택되어 덮어써지지 않게 한다.
+            input.onFocusSelectAll = false;
             input.caretColor = TextColor;
             input.customCaretColor = true;
             input.fontAsset = font;
@@ -138,7 +140,7 @@ namespace ReAction.Editor
             placeholder.fontStyle = FontStyles.Normal;
             placeholder.alignment = TextAlignmentOptions.MidlineLeft;
             placeholder.extraPadding = false;
-            placeholder.text = "어떻게 움직일까? (예: 오른쪽으로 달려서 점프)  Enter: 해석 → 한 번 더 Enter: 실행";
+            placeholder.text = "어떻게 움직일까? (예: 오른쪽으로 달려서 점프)  Enter: 실행";
             return input;
         }
 

@@ -39,7 +39,7 @@ namespace ReAction.Interpretation
             AssignTargets(request, requests);
 
             result.Actions = requests;
-            result.OverLimit = requests.Count > request.MaxActions;
+            result.OverLimit = ActionRules.CountTowardLimit(requests.Select(r => r.Type)) > request.MaxActions;
             if (requests.Count == 0) result.Notes = "어떤 행동인지 알 수 없다";
             return result;
         }

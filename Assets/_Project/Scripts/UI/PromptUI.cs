@@ -6,7 +6,7 @@ using UnityEngine.InputSystem;
 namespace ReAction.UI
 {
     /// <summary>
-    /// 하단 프롬프트 입력창 + 해석 미리보기 + 안내 문구 + 상단 상태 표시.
+    /// 하단 프롬프트 입력창 + 실행 중인 계획 요약 + 안내 문구 + 상단 상태 표시.
     /// 로직은 PlanningController에 있고, 여기서는 입력 전달과 표시만 한다.
     /// </summary>
     public sealed class PromptUI : MonoBehaviour
@@ -18,6 +18,8 @@ namespace ReAction.UI
         [SerializeField] private TMP_Text _preview;
         [SerializeField] private TMP_Text _message;
         [SerializeField] private TMP_Text _status;
+
+        private bool _moveCaretToEnd;
 
         private void OnEnable()
         {
@@ -44,7 +46,9 @@ namespace ReAction.UI
         private void Update()
         {
             var keyboard = Keyboard.current;
-            if (keyboard != null && keyboard.escapeKey.wasPressedThisFrame) _planning.ClearPreview();
+            if (keyboard != null && keyboard.escapeKey.wasPressedThisFrame) _planning.ClearFeedback();
+
+            KeepInputFocused();
 
             // 구역 이름은 보여주지 않는다. 목표가 정해졌는지만 알려준다.
             _status.text = _game.State == GameState.Planning
@@ -52,17 +56,39 @@ namespace ReAction.UI
                 : _game.State == GameState.Executing ? "실행 중" : "";
         }
 
+        /// <summary>
+        /// Planning 중에는 입력창을 항상 활성 상태로 둔다. 월드 클릭(목표 지정)이나 Esc로 포커스가 풀려도
+        /// 다음 프레임에 다시 잡고, 쓰던 글자 끝에 커서를 둔다.
+        /// </summary>
+        private void KeepInputFocused()
+        {
+            if (_game.State != GameState.Planning || !_input.interactable) return;
+
+            if (!_input.isFocused)
+            {
+                _input.ActivateInputField();
+                _moveCaretToEnd = true;
+            }
+            else if (_moveCaretToEnd)
+            {
+                _input.MoveTextEnd(false);
+                _moveCaretToEnd = false;
+            }
+        }
+
         private void OnSubmit(string text)
         {
             _planning.Submit(text);
-            // 실행이 시작되면 입력창을 비운다. 미리보기 단계면 그대로 둬서 바로 고칠 수 있게 한다.
+            // 실행이 시작되면 입력창을 비운다. 해석·검증에 실패했으면 그대로 둬서 바로 고칠 수 있게 한다.
             if (_game.State == GameState.Executing) _input.text = "";
             _input.ActivateInputField();
         }
 
         private void OnValueChanged(string text)
         {
-            _planning.ClearPreview();
+            // 실행 직후 입력창을 비울 때는 방금 실행한 계획 요약을 남겨 둔다. 새로 타이핑하면 지운다.
+            if (text.Length == 0) return;
+            _planning.ClearFeedback();
             _message.text = _planning.Message;
         }
 
@@ -78,7 +104,7 @@ namespace ReAction.UI
 
         private void Refresh()
         {
-            _preview.text = _planning.PreviewText;
+            _preview.text = _planning.PlanText;
             _message.text = _planning.Message;
         }
     }

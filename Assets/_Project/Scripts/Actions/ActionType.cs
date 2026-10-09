@@ -18,5 +18,24 @@ namespace ReAction.Actions
 
         // 환경 상호작용
         OpenDoor, KickDoor, BreakDoor, Enter, PressButton, PickUp, ThrowObject, UseExplosive, Wait,
+
+        // 무료 지시 (행동 수 제한에 세지 않음). 에셋에 정수로 저장되므로 새 값은 항상 맨 뒤에 추가한다.
+        Turn,
+    }
+
+    public static class ActionRules
+    {
+        /// <summary>프롬프트당 최대 3개 제한에 세는 행동인지. 방향 전환은 세지 않는다.</summary>
+        public static bool CountsTowardLimit(ActionType type) => type != ActionType.Turn && type != ActionType.None;
+
+        public static int CountTowardLimit(System.Collections.Generic.IEnumerable<ActionType> types)
+        {
+            int count = 0;
+            foreach (var t in types)
+            {
+                if (CountsTowardLimit(t)) count++;
+            }
+            return count;
+        }
     }
 }

@@ -45,6 +45,7 @@ namespace ReAction.Actions
             { ActionType.ThrowObject, "물건 던지기" },
             { ActionType.UseExplosive, "폭발물 사용" },
             { ActionType.Wait, "대기" },
+            { ActionType.Turn, "방향 전환" },
         };
 
         public static string Get(ActionType type) =>
@@ -65,8 +66,30 @@ namespace ReAction.Actions
         /// <summary>예: "앞으로 구르기", "문 걷어차기"</summary>
         public static string Describe(ActionRequest request)
         {
+            if (request.Type == ActionType.Turn)
+            {
+                return request.Direction == Direction.None || request.Direction == Direction.Backward
+                    ? "뒤돌기"
+                    : $"{Get(request.Direction)} 돌기";
+            }
+
             string direction = Get(request.Direction);
             return direction.Length == 0 ? Get(request.Type) : $"{direction} {Get(request.Type)}";
+        }
+
+        /// <summary>
+        /// 계획 요약. 제한에 세는 행동만 번호를 붙인다.
+        /// 예: "뒤돌기 → [1] 구르기 → [2] 점프"
+        /// </summary>
+        public static string DescribePlan(IEnumerable<ActionRequest> actions)
+        {
+            var parts = new List<string>();
+            int number = 0;
+            foreach (var a in actions)
+            {
+                parts.Add(ActionRules.CountsTowardLimit(a.Type) ? $"[{++number}] {Describe(a)}" : Describe(a));
+            }
+            return string.Join(" → ", parts);
         }
     }
 }

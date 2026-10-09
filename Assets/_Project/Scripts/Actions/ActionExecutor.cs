@@ -4,7 +4,7 @@ using System.Collections.Generic;
 namespace ReAction.Actions
 {
     /// <summary>
-    /// 검증된 행동 1~3개를 순서대로 실행한다. 행동 하나가 실패하면 남은 행동은 취소한다.
+    /// 검증된 행동 1~3개(+ 방향 전환 같은 무료 지시)를 순서대로 실행한다. 행동 하나가 실패하면 남은 행동은 취소한다.
     /// </summary>
     public sealed class ActionExecutor
     {
@@ -28,13 +28,15 @@ namespace ReAction.Actions
 
         public bool TryStart(IReadOnlyList<PlayerAction> actions)
         {
-            if (IsRunning || actions == null || actions.Count == 0 || actions.Count > MaxActionsPerPrompt)
-                return false;
+            if (IsRunning || actions == null || actions.Count == 0) return false;
 
+            int counted = 0;
             foreach (var a in actions)
             {
                 if (a == null) return false;
+                if (ActionRules.CountsTowardLimit(a.Request.Type)) counted++;
             }
+            if (counted > MaxActionsPerPrompt) return false;
 
             foreach (var a in actions) _pending.Enqueue(a);
             _index = -1;

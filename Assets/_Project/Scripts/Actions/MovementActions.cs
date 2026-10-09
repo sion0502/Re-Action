@@ -107,6 +107,23 @@ namespace ReAction.Actions
         }
     }
 
+    /// <summary>
+    /// 방향만 바꾼다 (즉시 완료, 행동 수에 세지 않음). 방향이 없거나 "뒤"면 돌아선다.
+    /// </summary>
+    public sealed class TurnAction : PlayerAction
+    {
+        public TurnAction(ActionDefinition definition, ActionRequest request) : base(definition, request) { }
+
+        protected override void OnBegin(IActorBody body)
+        {
+            int sign = Request.Direction == Direction.None ? -body.Facing : Request.Direction.ToSign(body.Facing);
+            body.Facing = sign;
+            Succeed();
+        }
+
+        protected override void OnTick(IActorBody body) { }
+    }
+
     /// <summary>정해진 시간 동안 제자리에서 기다린다.</summary>
     public sealed class WaitAction : PlayerAction
     {

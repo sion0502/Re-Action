@@ -1,4 +1,5 @@
 using System.Collections.Generic;
+using System.Linq;
 using ReAction.Actions;
 using ReAction.Stage;
 
@@ -43,13 +44,13 @@ namespace ReAction.Interpretation
                 return result;
             }
 
-            // 개수 초과는 아무것도 실행하지 않고 수정 안내만 한다 (임의로 자르지 않음).
-            if (interpretation.OverLimit || actions.Count > _maxActions)
+            // 개수 초과는 아무것도 실행하지 않고 수정 안내만 한다 (임의로 자르지 않음). 방향 전환은 세지 않는다.
+            int counted = ActionRules.CountTowardLimit(actions.Select(a => a.Type));
+            if (interpretation.OverLimit || counted > _maxActions)
             {
-                result.Errors.Add($"행동이 {actions.Count}개입니다. {_maxActions}개 이하로 줄여주세요");
+                result.Errors.Add($"행동이 {counted}개입니다. {_maxActions}개 이하로 줄여주세요");
                 return result;
             }
-
             // 이 프롬프트 안에서 앞선 행동으로 열린 출입구 (문 열기·창문 깨기 등)
             var openedEntries = new HashSet<string>();
             for (int i = 0; i < actions.Count; i++)

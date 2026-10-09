@@ -69,6 +69,13 @@ namespace ReAction.Tests
         }
 
         [Test]
+        public void TurnDoesNotCountTowardLimit()
+        {
+            var r = Validate(A(ActionType.Turn), A(ActionType.Run), A(ActionType.Jump), A(ActionType.Roll));
+            Assert.That(r.IsValid, Is.True, r.FirstError);
+        }
+
+        [Test]
         public void OverLimitFlag_RejectedEvenIfListWasShortened()
         {
             var validator = new ActionValidator(_graph, _knowledge, AllTypes);
