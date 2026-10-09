@@ -27,8 +27,30 @@ namespace ReAction.UI
         [SerializeField] private TMP_Text _deathText;
         [SerializeField] private Button _restartButton;
 
+        [Header("Tutorial")]
+        [Tooltip("입력칸이 비어 있을 때 돌아가며 보여주는 예시 프롬프트")]
+        [SerializeField] private string[] _examples =
+        {
+            "문을 걷어차고 들어가",
+            "외벽을 타고 올라가",
+            "창문을 깨고 들어가",
+            "오른쪽으로 3칸 달려",
+            "0.5초 기다리고 베어",
+            "뒤돌아서 베어",
+            "사다리 타고 올라가",
+            "벽까지 달려",
+            "앞으로 구르기",
+        };
+        [SerializeField] private float _exampleSeconds = 4f;
+        [TextArea]
+        [SerializeField] private string _goalHint =
+            "목표: 건물 옥상까지 올라가라. 마우스로 목표를 찍고, 어떻게 움직일지 입력한다. (행동은 한 번에 3개까지)";
+
         private bool _moveCaretToEnd;
         private TMP_Text _restartLabel;
+        private TMP_Text _placeholder;
+        private int _exampleIndex;
+        private float _exampleTimer;
 
         private void OnEnable()
         {
@@ -50,8 +72,29 @@ namespace ReAction.UI
 
         private void Start()
         {
+            _placeholder = _input.placeholder as TMP_Text;
             Refresh();
             OnStateChanged(_game.State, _game.State);
+            ShowExample();
+            // 처음 시작할 때만 목표를 알려준다. 무엇이든 입력하면 지워진다.
+            if (_game.Attempt == 1 && _message.text.Length == 0) _message.text = _goalHint;
+        }
+
+        /// <summary>입력칸이 비어 있으면 예시 프롬프트를 몇 초마다 바꿔 보여준다.</summary>
+        private void UpdateExamples()
+        {
+            if (_placeholder == null || _examples.Length == 0) return;
+            _exampleTimer += Time.unscaledDeltaTime;
+            if (_exampleTimer < _exampleSeconds) return;
+            _exampleTimer = 0f;
+            _exampleIndex = (_exampleIndex + 1) % _examples.Length;
+            ShowExample();
+        }
+
+        private void ShowExample()
+        {
+            if (_placeholder == null || _examples.Length == 0) return;
+            _placeholder.text = $"예: {_examples[_exampleIndex]}   (Enter: 실행)";
         }
 
         private void Update()
@@ -62,6 +105,7 @@ namespace ReAction.UI
             KeepInputFocused();
             UpdateDeathPanel(keyboard);
             UpdateFinalRun(keyboard);
+            UpdateExamples();
 
             string label = _planning.InterpreterLabel;
             _status.text = label.Length > 0

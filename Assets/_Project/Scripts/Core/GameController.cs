@@ -122,6 +122,19 @@ namespace ReAction.Core
         /// <summary>사망 후 월드가 초기 상태로 돌아갔을 때.</summary>
         public event Action WorldReset;
 
+        /// <summary>플레이어 행동이 시작될 때 (연출용).</summary>
+        public event Action<PlayerAction> ActionStarted;
+
+        /// <summary>등록된 적 (연출 등에서 이벤트를 구독할 때).</summary>
+        public IReadOnlyList<MeleeEnemy> Enemies => _enemies;
+
+        private float _hitstopTimer;
+
+        /// <summary>
+        /// 히트스톱: 실제 시간으로 잠깐 시뮬레이션 진행을 멈춘다. 틱 단위 결과는 바뀌지 않는다 (결정론 유지).
+        /// </summary>
+        public void Hitstop(float seconds) => _hitstopTimer = Mathf.Max(_hitstopTimer, seconds);
+
         private void Awake()
         {
             Physics2D.simulationMode = SimulationMode2D.Script;
@@ -272,6 +285,12 @@ namespace ReAction.Core
             {
                 case GameState.Executing:
                 case GameState.Planning:
+                    if (_hitstopTimer > 0f)
+                    {
+                        _hitstopTimer -= Time.unscaledDeltaTime;
+                        _clock.Pause();
+                        break;
+                    }
                     var state = _states.Current;
                     int steps = _clock.Advance(Time.deltaTime * WorldTimeScale);
                     for (int i = 0; i < steps && _states.Current == state; i++)
@@ -289,6 +308,12 @@ namespace ReAction.Core
                     break;
 
                 case GameState.FinalRun:
+                    if (_hitstopTimer > 0f)
+                    {
+                        _hitstopTimer -= Time.unscaledDeltaTime;
+                        _clock.Pause();
+                        break;
+                    }
                     int replaySteps = _clock.Advance(Time.deltaTime);
                     for (int i = 0; i < replaySteps && _states.Current == GameState.FinalRun; i++)
                         ReplayTick();
@@ -402,6 +427,7 @@ namespace ReAction.Core
 
         private void OnActionStarted(PlayerAction action, int index)
         {
+            ActionStarted?.Invoke(action);
             PzLog.Info($"  [{index + 1}] {action} start (tick {Tick})");
         }
 

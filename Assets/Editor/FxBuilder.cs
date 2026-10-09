@@ -2,6 +2,7 @@ using System.IO;
 using System.Linq;
 using ReAction.Core;
 using ReAction.Fx;
+using ReAction.Stage;
 using UnityEditor;
 using UnityEngine;
 using UnityEngine.Rendering.Universal;
@@ -87,6 +88,32 @@ namespace ReAction.Editor
             var cameraData = Camera.main.GetComponent<UniversalAdditionalCameraData>();
             if (cameraData != null) cameraData.renderPostProcessing = true;
             return fx;
+        }
+
+        /// <summary>
+        /// 타격감 연출(효과음·화면 흔들림·히트스톱). 카메라는 씬에 계속 남아 있으므로 컴포넌트가 없을 때만 붙인다.
+        /// </summary>
+        public static GameFeedback BuildFeedback(GameObject host, GameController game, PlanningController planning,
+            StageController stage)
+        {
+            var camera = Camera.main.gameObject;
+            var shake = camera.GetComponent<CameraShake>();
+            if (shake == null) shake = camera.AddComponent<CameraShake>();
+            if (camera.GetComponent<AudioListener>() == null) camera.AddComponent<AudioListener>();
+
+            var audio = host.AddComponent<AudioSource>();
+            audio.playOnAwake = false;
+            audio.spatialBlend = 0f;
+
+            var feedback = host.AddComponent<GameFeedback>();
+            var so = new SerializedObject(feedback);
+            so.FindProperty("_game").objectReferenceValue = game;
+            so.FindProperty("_planning").objectReferenceValue = planning;
+            so.FindProperty("_stage").objectReferenceValue = stage;
+            so.FindProperty("_shake").objectReferenceValue = shake;
+            so.FindProperty("_audio").objectReferenceValue = audio;
+            so.ApplyModifiedPropertiesWithoutUndo();
+            return feedback;
         }
 
         private static void EnsureFolder(string path)

@@ -126,7 +126,8 @@ namespace ReAction.Editor
             SetRef(planning, "_llmSettings", EnsureLlmSettings());
 
             PromptUIBuilder.Build(gameRoot.transform, game, planning, selector, PromptUIBuilder.EnsureFontAsset());
-            FxBuilder.Build(gameRoot.transform, game, fxSettings);
+            var fx = FxBuilder.Build(gameRoot.transform, game, fxSettings);
+            FxBuilder.BuildFeedback(fx.gameObject, game, planning, stage);
 
             EditorSceneManager.MarkSceneDirty(scene);
             EditorSceneManager.SaveScene(scene);

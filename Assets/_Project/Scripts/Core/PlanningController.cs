@@ -42,6 +42,9 @@ namespace ReAction.Core
         /// <summary>계획 요약·안내가 바뀔 때.</summary>
         public event Action Changed;
 
+        /// <summary>프롬프트 처리 결과: true = 실행됨, false = 해석·검증 실패 (효과음 등 연출용).</summary>
+        public event Action<bool> Outcome;
+
         private void Start()
         {
             // StageController.Awake에서 그래프가 만들어진 뒤에 초기화한다.
@@ -100,6 +103,7 @@ namespace ReAction.Core
             if (prompt.Length == 0)
             {
                 SetMessage("행동을 입력하세요");
+                Outcome?.Invoke(false);
                 return;
             }
             if (!_game.TryBeginInterpreting()) return;
@@ -116,6 +120,7 @@ namespace ReAction.Core
                 PzLog.Error($"Interpret failed: {e.Message}");
                 _game.EndInterpreting();
                 SetMessage("해석하지 못했다. 다시 입력하세요");
+                Outcome?.Invoke(false);
                 return;
             }
             finally
@@ -135,15 +140,18 @@ namespace ReAction.Core
             if (!validation.IsValid)
             {
                 SetMessage(WithSourceNote(string.Join("\n", validation.Errors)));
+                Outcome?.Invoke(false);
                 return;
             }
 
             if (!_game.TryExecute(result.Actions, out var error, prompt, request.TargetZoneId))
             {
                 SetMessage(error);
+                Outcome?.Invoke(false);
                 return;
             }
 
+            Outcome?.Invoke(true);
             PzLog.Info($"Plan executed: target={request.TargetZoneId ?? "-"} prompt=\"{prompt}\"");
             // 실행 중에는 무엇을 하고 있는지 보여준다. 다음 입력을 시작하면 지워진다.
             PlanText = ActionNames.DescribePlan(result.Actions);

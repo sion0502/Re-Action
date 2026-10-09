@@ -39,6 +39,9 @@ namespace ReAction.Enemies
         public MeleeEnemyState State { get; private set; } = MeleeEnemyState.Idle;
         public int Facing { get; private set; }
         public bool IsDead => State == MeleeEnemyState.Dead;
+
+        /// <summary>쓰러졌을 때 (연출용).</summary>
+        public event System.Action<MeleeEnemy> Died;
         public Vector2 Position
         {
             get
@@ -133,6 +136,7 @@ namespace ReAction.Enemies
             _body.simulated = false;
             SetState(MeleeEnemyState.Dead);
             PzLog.Info($"{name} killed");
+            Died?.Invoke(this);
         }
 
         public void CaptureInitialState()
