@@ -136,10 +136,14 @@ namespace ReAction.Interpretation.Llm
                 }
 
                 Enum.TryParse((string)item["direction"], true, out Direction direction);
+                // 문·창문·벽·사다리·진입은 대상 위치로 방향이 정해진다. 모델이 붙인 방향은 무시한다.
+                if (ActionTargeting.RequiredKind(type).HasValue || type == ActionType.Enter) direction = Direction.None;
                 Enum.TryParse((string)item["unit"], true, out AmountUnit unit);
                 float amount = item["amount"]?.Type == JTokenType.Float || item["amount"]?.Type == JTokenType.Integer
                     ? (float)item["amount"]
                     : 0f;
+                // 시간·거리 단위인데 값이 0 이하면 수치가 없는 것으로 본다 (모델이 단위만 채우는 경우가 있다).
+                if ((unit == AmountUnit.Seconds || unit == AmountUnit.Units) && amount <= 0f) unit = AmountUnit.None;
                 if (unit == AmountUnit.None) amount = 0f;
                 string target = (string)item["target"];
 

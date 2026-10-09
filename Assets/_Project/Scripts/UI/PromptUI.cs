@@ -76,6 +76,7 @@ namespace ReAction.UI
                 // 구역 이름은 보여주지 않는다. 목표가 정해졌는지만 알려준다.
                 case GameState.Planning:
                     return _selector.SelectedId != null ? "계획 중 · 목표 지정됨" : "계획 중 · 목표를 클릭하세요";
+                case GameState.Interpreting: return "해석 중… (시간 정지)";
                 case GameState.Executing: return "실행 중";
                 case GameState.Dead: return "죽었다";
                 case GameState.Rewind: return "되감는 중 (클릭: 건너뛰기)";

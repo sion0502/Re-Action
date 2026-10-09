@@ -5,6 +5,8 @@ namespace ReAction.Interpretation.Llm
     public enum LlmProviderKind
     {
         Claude,
+        /// <summary>이 PC의 Ollama 로컬 모델 (키·비용 없음)</summary>
+        Ollama,
     }
 
     /// <summary>
@@ -30,5 +32,14 @@ namespace ReAction.Interpretation.Llm
 
         [Tooltip("응답 최대 토큰 (생각 + JSON). 너무 작으면 응답이 잘려 실패한다")]
         public int MaxTokens = 8000;
+
+        [Header("Ollama (로컬 모델)")]
+        public string OllamaUrl = "http://localhost:11434";
+
+        [Tooltip("ollama list에 나오는 모델 이름")]
+        public string OllamaModel = "richardyoung/qwen3-14b-abliterated:Q5_K_M";
+
+        [Tooltip("로컬 모델 응답 대기 한도 (초). GPU에 따라 몇 초씩 걸린다")]
+        public float OllamaTimeoutSeconds = 20f;
     }
 }

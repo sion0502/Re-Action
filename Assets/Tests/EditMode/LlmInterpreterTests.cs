@@ -74,6 +74,16 @@ namespace ReAction.Tests
         }
 
         [Test]
+        public void ParseResult_UnitWithZeroAmount_MeansNoAmount()
+        {
+            const string json = "{\"actions\":[{\"type\":\"Run\",\"direction\":\"Forward\",\"target\":\"\",\"amount\":0,\"unit\":\"Units\"}],\"notes\":\"\"}";
+
+            var r = LlmPrompt.ParseResult(json, 3);
+
+            Assert.That(r.Actions[0].HasAmount, Is.False);
+        }
+
+        [Test]
         public void ExtractJson_TakesLastTextBlock_AndRejectsRefusal()
         {
             const string ok = "{\"stop_reason\":\"end_turn\",\"content\":[{\"type\":\"thinking\",\"thinking\":\"\"}," +

@@ -63,17 +63,28 @@ namespace ReAction.Core
                 return mock;
             }
 
-            string key = ApiKeyStore.GetAnthropicKey();
-            if (key == null)
+            ILlmProvider provider;
+            if (_llmSettings.Provider == LlmProviderKind.Ollama)
             {
-                PzLog.Warn($"LLM enabled but no API key ({ApiKeyStore.EnvVar} or {ApiKeyStore.LocalFile}) - using mock interpreter");
-                InterpreterLabel = "키워드 해석 (API 키 없음)";
-                return mock;
+                var ollama = new OllamaProvider(_llmSettings);
+                ollama.WarmUp(); // 첫 프롬프트 전에 모델을 GPU에 올려 둔다
+                provider = ollama;
+                InterpreterLabel = "AI 해석 (로컬 모델)";
+            }
+            else
+            {
+                string key = ApiKeyStore.GetAnthropicKey();
+                if (key == null)
+                {
+                    PzLog.Warn($"LLM enabled but no API key ({ApiKeyStore.EnvVar} or {ApiKeyStore.LocalFile}) - using mock interpreter");
+                    InterpreterLabel = "키워드 해석 (API 키 없음)";
+                    return mock;
+                }
+                provider = new ClaudeProvider(_llmSettings, key);
+                InterpreterLabel = "AI 해석 (Claude)";
             }
 
-            var provider = new ClaudeProvider(_llmSettings, key);
             PzLog.Info($"Using LLM interpreter: {provider.Name}");
-            InterpreterLabel = "AI 해석 (Claude)";
             return new LlmInterpreter(provider, mock, allowed);
         }
 

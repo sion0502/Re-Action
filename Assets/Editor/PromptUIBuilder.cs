@@ -88,7 +88,7 @@ namespace ReAction.Editor
 
             var status = CreateText("Status", root, font, TextColor, TextAlignmentOptions.TopLeft);
             Place(status.rectTransform, new Vector2(0f, 1f), new Vector2(0f, 1f), new Vector2(0f, 1f),
-                new Vector2(8f, -6f), new Vector2(300f, 14f));
+                new Vector2(8f, -6f), new Vector2(620f, 14f));
 
             var (deathPanel, deathText, restartButton) = CreateDeathPanel(root, font);
 
