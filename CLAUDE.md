@@ -48,6 +48,8 @@
 - **스크립트 작성 → 컴파일 확인 → 에디터 작업** 순서를 지킨다. C# 파일을 수정한 뒤에는 MCP로 컴파일 완료/에러를 확인하고, 콘솔 에러가 0개일 때만 다음 단계로 넘어간다.
 - 기능을 만든 뒤에는 **플레이 모드로 직접 실행해 콘솔 로그로 검증**한다 (필요하면 `Debug.Log`에 `[PZ]` 접두사를 붙여 필터링). EditMode 테스트가 있으면 MCP로 실행한다.
 - 스테이지처럼 반복 생성·수정이 잦은 것은 MCP로 손으로 배치하기보다 **데이터(`StageDefinition`) + 빌더 코드**로 만들고, MCP로는 빌더를 실행·검증한다. 그래야 결과가 재현 가능하고 diff로 추적된다.
+  - 현재 빌더: 메뉴 `ReAction/Build Test Scene` (`Assets/Editor/TestSceneBuilder.cs`). 테스트 스테이지 데이터는 `Assets/Editor/TestStageData.cs`.
+- 에디터 창에 포커스가 없으면 플레이 모드 프레임이 거의 진행되지 않는다. 검증할 때는 `EditorApplication.isPaused = true` 후 `EditorApplication.Step()`으로 프레임을 직접 넘긴다. 이 방식에서는 마우스 클릭(`wasPressedThisFrame`)이 전달되지 않으므로, 입력 처리는 `ZoneSelector.ClickAt`처럼 직접 호출 가능한 메서드로 분리해 둔다. 검증 후 `isPaused = false`로 되돌린다.
 - 씬/프리팹 변경 후에는 반드시 저장한다. 큰 씬 구조 변경 전에는 무엇을 바꿀지 먼저 요약한다.
 - `.meta` 파일은 직접 만들거나 수정하지 않는다. 에셋 생성·이동·삭제는 MCP(에디터 API)를 통해 해서 GUID가 깨지지 않게 한다.
 - MCP 도구로 할 수 없는 작업(패키지 설치 승인, Project Settings 일부 등)이 있으면 그때만 사용자에게 정확한 경로와 함께 요청한다.

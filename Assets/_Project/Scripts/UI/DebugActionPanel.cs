@@ -1,12 +1,13 @@
 using System.Collections.Generic;
 using ReAction.Actions;
 using ReAction.Core;
+using ReAction.Stage;
 using UnityEngine;
 
 namespace ReAction.UI
 {
     /// <summary>
-    /// M1 디버그용 패널. 프롬프트 대신 버튼으로 행동을 골라 실행한다.
+    /// 디버그용 패널. 프롬프트 대신 버튼으로 행동을 골라 실행한다 (M3에서 프롬프트 입력으로 대체).
     /// 행동 개수 거부를 확인할 수 있도록 3개를 넘겨서도 담을 수 있다.
     /// </summary>
     public sealed class DebugActionPanel : MonoBehaviour
@@ -18,22 +19,42 @@ namespace ReAction.UI
             { Direction.None, Direction.Forward, Direction.Backward, Direction.Left, Direction.Right };
         private static readonly string[] DirectionLabels = { "없음", "앞", "뒤", "왼쪽", "오른쪽" };
 
+        private static readonly Rect PanelRect = new Rect(10, 10, 360, 360);
+
         [SerializeField] private GameController _game;
+        [SerializeField] private StageController _stage;
+        [SerializeField] private ZoneSelector _selector;
         [SerializeField] private bool _visible = true;
 
         private readonly List<ActionRequest> _queue = new List<ActionRequest>();
         private int _directionIndex;
         private string _message = "";
 
+        private static float Scale => Screen.height / ReferenceHeight;
+
+        /// <summary>화면 좌표(왼쪽 아래 원점)가 패널 위인지. 패널 위 클릭은 월드 클릭으로 처리하지 않는다.</summary>
+        public bool ContainsScreenPoint(Vector2 screenPoint)
+        {
+            if (!_visible) return false;
+            var guiPoint = new Vector2(screenPoint.x, Screen.height - screenPoint.y) / Scale;
+            return PanelRect.Contains(guiPoint);
+        }
+
         private void OnGUI()
         {
             if (!_visible || _game == null || _game.Catalog == null) return;
 
-            float scale = Screen.height / ReferenceHeight;
-            GUI.matrix = Matrix4x4.Scale(new Vector3(scale, scale, 1f));
+            GUI.matrix = Matrix4x4.Scale(new Vector3(Scale, Scale, 1f));
 
-            GUILayout.BeginArea(new Rect(10, 10, 360, 330), GUI.skin.box);
+            GUILayout.BeginArea(PanelRect, GUI.skin.box);
             GUILayout.Label($"상태: {_game.State}   틱: {_game.Tick}");
+            // 구역 Id는 디버그 표시일 뿐, 실제 게임 화면에는 나오지 않는다.
+            if (_stage != null) GUILayout.Label($"[debug] 현재 구역: {_stage.CurrentZoneId ?? "-"}");
+            if (_selector != null)
+            {
+                GUILayout.Label($"[debug] 목표: {_selector.SelectedId ?? "(클릭해서 선택)"}");
+                if (!string.IsNullOrEmpty(_selector.Message)) GUILayout.Label(_selector.Message);
+            }
             if (_game.CurrentAction != null)
                 GUILayout.Label($"실행 중: {_game.CurrentAction.Definition.DisplayName} ({_game.CurrentAction.ElapsedTicks})");
 

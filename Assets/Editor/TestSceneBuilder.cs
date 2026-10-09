@@ -3,6 +3,7 @@ using System.IO;
 using ReAction.Actions;
 using ReAction.Core;
 using ReAction.Player;
+using ReAction.Stage;
 using ReAction.UI;
 using UnityEditor;
 using UnityEditor.Animations;
@@ -12,10 +13,11 @@ using UnityEngine;
 namespace ReAction.Editor
 {
     /// <summary>
-    /// M1 테스트 씬과 필요한 에셋(행동 정의, 애니메이터, 플레이어 프리팹)을 만든다.
-    /// 에셋은 없을 때만 생성해서 직접 조정한 값이 덮어써지지 않게 하고, 씬의 Stage는 매번 다시 만든다.
+    /// 테스트 씬과 필요한 에셋(행동 정의, 애니메이터, 플레이어 프리팹, 테스트 스테이지 데이터)을 만든다.
+    /// 행동 정의 등 조정 가능한 에셋은 없을 때만 생성하고, 씬의 게임 오브젝트는 매번 다시 만든다.
+    /// 지형은 StageDefinition 데이터에서 만들어진다.
     /// </summary>
-    public static class M1SceneBuilder
+    public static class TestSceneBuilder
     {
         private const string Root = "Assets/_Project";
         private const string ScenePath = Root + "/Scenes/Main.unity";
@@ -23,6 +25,7 @@ namespace ReAction.Editor
         private const string NoFrictionPath = Root + "/Art/Physics/NoFriction.physicsMaterial2D";
         private const string ActionsFolder = Root + "/ScriptableObjects/Actions";
         private const string CatalogPath = Root + "/ScriptableObjects/ActionCatalog.asset";
+        private const string TestStagePath = Root + "/ScriptableObjects/Stages/TestStage.asset";
         private const string PlayerControllerPath = Root + "/Art/Animations/Player.controller";
         private const string PlayerPrefabPath = Root + "/Prefabs/Player.prefab";
 
@@ -33,7 +36,7 @@ namespace ReAction.Editor
         private static readonly string[] HeroStates =
             { "Idle", "Run", "Jump", "Fall", "Roll", "Attack1", "Attack2", "Attack3", "WallSlide", "LedgeGrab", "Hurt", "Death" };
 
-        [MenuItem("ReAction/Build M1 Test Scene")]
+        [MenuItem("ReAction/Build Test Scene")]
         public static void Build()
         {
             Physics2D.simulationMode = SimulationMode2D.Script;
@@ -43,16 +46,17 @@ namespace ReAction.Editor
             var catalog = EnsureActionCatalog();
             var controller = EnsurePlayerAnimator();
             var playerPrefab = BuildPlayerPrefab(controller, noFriction);
+            var stageDefinition = WriteTestStage();
 
             var scene = EditorSceneManager.OpenScene(ScenePath, OpenSceneMode.Single);
             var gameRoot = FindOrCreateRoot("--- Game ---");
             for (int i = gameRoot.transform.childCount - 1; i >= 0; i--)
                 Object.DestroyImmediate(gameRoot.transform.GetChild(i).gameObject);
 
-            BuildStage(gameRoot.transform, square, noFriction);
+            BuildStage(gameRoot.transform, stageDefinition, square, noFriction);
 
             var player = (GameObject)PrefabUtility.InstantiatePrefab(playerPrefab, gameRoot.transform);
-            player.transform.position = new Vector3(-6f, -4f, 0f);
+            player.transform.position = stageDefinition.PlayerStart;
 
             var controllerGo = new GameObject("GameController");
             controllerGo.transform.SetParent(gameRoot.transform);
@@ -60,45 +64,69 @@ namespace ReAction.Editor
             SetRef(game, "_catalog", catalog);
             SetRef(game, "_player", player.GetComponent<PlayerMotor>());
             SetRef(game, "_playerView", player.GetComponent<PlayerView>());
-            var panel = controllerGo.AddComponent<DebugActionPanel>();
+
+            var stageGo = new GameObject("StageController");
+            stageGo.transform.SetParent(gameRoot.transform);
+            var stage = stageGo.AddComponent<StageController>();
+            SetRef(stage, "_definition", stageDefinition);
+            SetRef(stage, "_game", game);
+            SetRef(stage, "_player", player.GetComponent<PlayerMotor>());
+            SetRef(stage, "_fogSprite", square);
+
+            var uiGo = new GameObject("DebugUI");
+            uiGo.transform.SetParent(gameRoot.transform);
+            var panel = uiGo.AddComponent<DebugActionPanel>();
+            var selector = uiGo.AddComponent<ZoneSelector>();
             SetRef(panel, "_game", game);
+            SetRef(panel, "_stage", stage);
+            SetRef(panel, "_selector", selector);
+            SetRef(selector, "_game", game);
+            SetRef(selector, "_stage", stage);
+            SetRef(selector, "_camera", Camera.main);
+            SetRef(selector, "_panel", panel);
+            SetRef(selector, "_lineSprite", square);
 
             EditorSceneManager.MarkSceneDirty(scene);
             EditorSceneManager.SaveScene(scene);
             AssetDatabase.SaveAssets();
-            PzLog.Info("M1 test scene built");
+            PzLog.Info("Test scene built");
         }
 
-        private static void BuildStage(Transform parent, Sprite square, PhysicsMaterial2D material)
+        private static void BuildStage(Transform parent, StageDefinition definition, Sprite square, PhysicsMaterial2D material)
         {
             var stage = new GameObject("Stage").transform;
             stage.SetParent(parent);
 
-            var floorColor = new Color(0.35f, 0.33f, 0.4f);
-            var obstacleColor = new Color(0.5f, 0.42f, 0.32f);
+            foreach (var block in definition.Blocks)
+            {
+                var go = new GameObject(block.Name);
+                go.transform.SetParent(stage);
+                go.transform.position = block.Bounds.center;
+                go.transform.localScale = new Vector3(block.Bounds.width, block.Bounds.height, 1f);
 
-            // 화면은 20 x 11.25 유닛 (640x360, PPU 32), 바닥 윗면은 y = -4
-            CreateBlock(stage, "Ground", new Vector2(0f, -4.5f), new Vector2(20f, 1f), floorColor, square, material);
-            CreateBlock(stage, "Wall_Left", new Vector2(-9.5f, 0f), new Vector2(1f, 11.25f), floorColor, square, material);
-            CreateBlock(stage, "Wall_Right", new Vector2(9.5f, 0f), new Vector2(1f, 11.25f), floorColor, square, material);
-            CreateBlock(stage, "Crate", new Vector2(0f, -3.5f), new Vector2(1f, 1f), obstacleColor, square, material);
-            CreateBlock(stage, "Platform", new Vector2(5.5f, -2.25f), new Vector2(3f, 0.5f), floorColor, square, material);
+                var renderer = go.AddComponent<SpriteRenderer>();
+                renderer.sprite = square;
+                renderer.color = block.Color;
+                renderer.sortingOrder = block.SortingOrder;
+
+                if (!block.Solid) continue;
+                var collider = go.AddComponent<BoxCollider2D>();
+                collider.sharedMaterial = material;
+            }
         }
 
-        private static void CreateBlock(Transform parent, string name, Vector2 center, Vector2 size, Color color,
-            Sprite sprite, PhysicsMaterial2D material)
+        private static StageDefinition WriteTestStage()
         {
-            var go = new GameObject(name);
-            go.transform.SetParent(parent);
-            go.transform.position = center;
-            go.transform.localScale = new Vector3(size.x, size.y, 1f);
-
-            var renderer = go.AddComponent<SpriteRenderer>();
-            renderer.sprite = sprite;
-            renderer.color = color;
-
-            var collider = go.AddComponent<BoxCollider2D>();
-            collider.sharedMaterial = material;
+            var definition = AssetDatabase.LoadAssetAtPath<StageDefinition>(TestStagePath);
+            if (definition == null)
+            {
+                EnsureFolder(Path.GetDirectoryName(TestStagePath));
+                definition = ScriptableObject.CreateInstance<StageDefinition>();
+                AssetDatabase.CreateAsset(definition, TestStagePath);
+            }
+            TestStageData.Fill(definition);
+            EditorUtility.SetDirty(definition);
+            return definition;
         }
 
         private static GameObject BuildPlayerPrefab(AnimatorController controller, PhysicsMaterial2D material)

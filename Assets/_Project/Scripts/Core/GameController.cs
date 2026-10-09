@@ -41,6 +41,9 @@ namespace ReAction.Core
             remove => _states.Changed -= value;
         }
 
+        /// <summary>시뮬레이션 틱 하나가 끝날 때마다 (물리 진행 후). 인자는 틱 번호.</summary>
+        public event Action<int> Ticked;
+
         private void Awake()
         {
             Physics2D.simulationMode = SimulationMode2D.Script;
@@ -120,6 +123,7 @@ namespace ReAction.Core
 
             Physics2D.Simulate(DeterministicClock.TickDuration);
             _clock.Step();
+            Ticked?.Invoke(_clock.Tick);
 
             if (_settling) UpdateSettle();
         }
