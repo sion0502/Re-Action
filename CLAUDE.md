@@ -238,8 +238,9 @@ LLM/Mock 결과 → 검증 → 실행. 검사 항목:
 - 아트: **픽셀 아트.** 캐릭터·적은 `Assets/ExternalAssets/`의 에셋으로 시작한다.
   - 플레이어: `Hero Knight - Pixel Art` (Idle/Run/Jump/Fall/Roll/Attack1~3/LedgeGrab/WallSlide/Death 등)
   - 적: `Monsters Creatures Fantasy` (Goblin, Skeleton, Mushroom, Flying eye)
-  - 외부 에셋 폴더는 직접 수정하지 않는다. 필요한 프리팹·애니메이터는 `_Project/` 아래에 새로 만들어 참조한다. 에셋의 데모 스크립트(`HeroKnight.cs` 등)는 게임 로직에 쓰지 않는다.
-  - 픽셀 아트 설정: 스프라이트 Filter Mode = Point, Compression = None, PPU 통일, 카메라는 Pixel Perfect Camera 사용.
+  - 외부 에셋 폴더의 파일(스프라이트·애니메이션·스크립트)은 수정하지 않는다. 임포트 설정 변경만 에디터 API로 허용. 필요한 프리팹·애니메이터는 `_Project/` 아래에 새로 만들어 참조한다. 에셋의 데모 스크립트(`HeroKnight.cs` 등)는 게임 로직에 쓰지 않는다.
+  - 픽셀 아트 설정(M0에서 적용됨): 모든 스프라이트 Filter Mode = Point, Compression = None, Mipmap 끔, **PPU = 32**. 카메라는 Pixel Perfect Camera(PPU 32, 기준 해상도 640×360 → 화면 20×11.25 유닛).
+  - 프레임 크기: 히어로 100×55px, 몬스터 150×150px(캐릭터는 프레임 중앙 부분만 차지). 발 위치 기준 피벗 정렬은 프리팹 만들 때 맞춘다.
   - 건물·배경은 MVP에서 단색 도형/타일 플레이스홀더로 시작. SpriteRenderer/Animator를 로직과 분리해서 나중에 교체하기 쉽게.
 
 ---
