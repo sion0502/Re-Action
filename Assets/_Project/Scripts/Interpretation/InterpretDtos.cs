@@ -31,9 +31,24 @@ namespace ReAction.Interpretation
         public int MaxActions = ActionExecutor.MaxActionsPerPrompt;
     }
 
+    /// <summary>해석 결과를 누가 만들었는지 (UI에 작게 표시).</summary>
+    public enum InterpretSource
+    {
+        Mock,
+        Llm,
+        LlmCache,
+        /// <summary>LLM이 실패해서 목업 해석기로 대신했다.</summary>
+        MockFallback,
+    }
+
     [Serializable]
     public sealed class InterpretResult
     {
+        public InterpretSource Source = InterpretSource.Mock;
+
+        /// <summary>MockFallback일 때 LLM이 실패한 이유.</summary>
+        public string FallbackReason = "";
+
         /// <summary>인식된 행동 전부. 개수 제한으로 자르지 않는다 (판정은 검증기가 한다).</summary>
         public List<ActionRequest> Actions = new List<ActionRequest>();
         /// <summary>행동 수가 MaxActions를 넘었는지.</summary>

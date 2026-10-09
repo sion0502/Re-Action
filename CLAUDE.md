@@ -38,7 +38,7 @@
 | UI | uGUI + TextMeshPro. 한글 폰트는 Galmuri11 픽셀 폰트(SIL OFL, `Art/Fonts/`), TMP 래스터 모드 + 크기 11 + 캔버스 기준 640×360. 입력창 텍스트는 `extraPadding`을 꺼야 글자가 안 깨진다 |
 | JSON | `com.unity.nuget.newtonsoft-json` |
 | HTTP | `UnityWebRequest` + async/await (또는 UniTask 도입 시 문서에 기록) |
-| AI | **미정** → `IActionInterpreter` 인터페이스로 추상화, 구현체 교체 가능 |
+| AI | **Claude** (`claude-opus-5-5`, Messages API를 `UnityWebRequest`로 직접 호출). `IActionInterpreter` / `ILlmProvider`로 추상화되어 공급자 교체 가능. 설정: `ScriptableObjects/LlmSettings.asset` |
 
 ### Claude Code 작업 시 주의 (Unity MCP 연동)
 이 프로젝트는 **Unity MCP 서버로 Claude Code가 Unity 에디터를 직접 조작**한다.
@@ -313,6 +313,9 @@ Assets/
 - RunRecord 저장, 정지 없는 연속 재생, 결과 화면
 
 **M7. LLM 연동**
+- 구현: `LlmInterpreter`(캐시 + 실패 시 Mock 폴백) → `ClaudeProvider`(구조화 출력 `output_config.format` json_schema, 시스템 프롬프트 `cache_control`, 서버 측 `fallbacks: "default"`, effort `low`, 타임아웃 8초). 시스템 프롬프트·스키마는 허용 행동 목록만으로 정해지는 고정 텍스트(캐싱), 상황(공개된 구역·목표·명령)은 user 메시지.
+- API 키: 환경 변수 `ANTHROPIC_API_KEY` 또는 `UserSettings/api_keys.json` (`{"anthropic": "sk-ant-..."}`, git 무시). 키가 없으면 키워드 해석기로 동작하고 상태 줄에 표시.
+- FINAL RUN은 해석된 행동을 기록하므로 LLM 응답이 매번 달라도 재현에 영향이 없다.
 - `ILlmProvider` 어댑터, 시스템 프롬프트, JSON 스키마 검증, 폴백, 캐시
 
 **M8. 폴리싱**
@@ -332,6 +335,5 @@ Assets/
 
 ## 13. 아직 정하지 않은 것 (작업 중 임의로 확정하지 말고 질문할 것)
 
-- AI 공급자 (Claude / OpenAI / 로컬 모델)
 - 캐릭터 설정, 게임 정식 제목 (아트 스타일은 픽셀 아트로 확정)
 - 스테이지 2 이상 확장 여부

@@ -3,6 +3,7 @@ using System.Linq;
 using System.Threading;
 using ReAction.Actions;
 using ReAction.Interpretation;
+using ReAction.Interpretation.Llm;
 using ReAction.Stage;
 using ReAction.UI;
 using UnityEngine;
@@ -19,6 +20,8 @@ namespace ReAction.Core
         [SerializeField] private StageController _stage;
         [SerializeField] private ZoneSelector _selector;
         [SerializeField] private TextAsset _mockKeywords;
+        [Tooltip("비워 두거나 Enabled를 끄면 키워드(목업) 해석기만 쓴다")]
+        [SerializeField] private LlmSettings _llmSettings;
 
         private IActionInterpreter _interpreter;
         private ActionValidator _validator;
@@ -30,19 +33,49 @@ namespace ReAction.Core
         /// <summary>해석·검증 실패 등 플레이어에게 보여줄 안내.</summary>
         public string Message { get; private set; } = "";
 
+        /// <summary>지금 쓰는 해석기 이름 (상태 표시용). 예: "AI 해석 (Claude)", "키워드 해석"</summary>
+        public string InterpreterLabel { get; private set; } = "";
+
+        /// <summary>마지막 해석이 AI 실패로 키워드 해석기를 대신 썼다면 그 이유.</summary>
+        public string LastFallbackReason { get; private set; } = "";
+
         /// <summary>계획 요약·안내가 바뀔 때.</summary>
         public event Action Changed;
 
         private void Start()
         {
             // StageController.Awake에서 그래프가 만들어진 뒤에 초기화한다.
-            _interpreter = new MockInterpreter(MockKeywordTable.FromJson(_mockKeywords.text));
-            var allowed = _game.Catalog.Definitions.Where(d => d != null).Select(d => d.Type);
+            var allowed = _game.Catalog.Definitions.Where(d => d != null).Select(d => d.Type).ToList();
+            _interpreter = CreateInterpreter(allowed);
             _validator = new ActionValidator(_stage.Graph, _stage.Knowledge, allowed,
                 ActionExecutor.MaxActionsPerPrompt, _stage.IsEntryOpen);
         }
 
         private void OnDestroy() => _cts?.Cancel();
+
+        /// <summary>LLM을 쓸 수 있으면 LLM 해석기(실패 시 키워드 해석기로 대체), 아니면 키워드 해석기.</summary>
+        private IActionInterpreter CreateInterpreter(System.Collections.Generic.List<ActionType> allowed)
+        {
+            var mock = new MockInterpreter(MockKeywordTable.FromJson(_mockKeywords.text));
+            if (_llmSettings == null || !_llmSettings.Enabled)
+            {
+                InterpreterLabel = "키워드 해석";
+                return mock;
+            }
+
+            string key = ApiKeyStore.GetAnthropicKey();
+            if (key == null)
+            {
+                PzLog.Warn($"LLM enabled but no API key ({ApiKeyStore.EnvVar} or {ApiKeyStore.LocalFile}) - using mock interpreter");
+                InterpreterLabel = "키워드 해석 (API 키 없음)";
+                return mock;
+            }
+
+            var provider = new ClaudeProvider(_llmSettings, key);
+            PzLog.Info($"Using LLM interpreter: {provider.Name}");
+            InterpreterLabel = "AI 해석 (Claude)";
+            return new LlmInterpreter(provider, mock, allowed);
+        }
 
         /// <summary>
         /// Enter 입력: 해석 → 검증 → 통과하면 바로 실행. 실패하면 이유만 보여주고 세계는 바꾸지 않는다.
@@ -83,13 +116,14 @@ namespace ReAction.Core
             _game.EndInterpreting();
             if (this == null) return;
 
-            PzLog.Info($"Interpret \"{prompt}\" target={request.TargetZoneId ?? "-"} -> " +
+            LastFallbackReason = result.Source == InterpretSource.MockFallback ? result.FallbackReason : "";
+            PzLog.Info($"Interpret [{result.Source}] \"{prompt}\" target={request.TargetZoneId ?? "-"} -> " +
                        $"[{string.Join(", ", result.Actions.Select(a => $"{a}@{a.Target ?? "-"}"))}] overLimit={result.OverLimit}");
 
             var validation = _validator.Validate(result, request.CurrentZoneId);
             if (!validation.IsValid)
             {
-                SetMessage(string.Join("\n", validation.Errors));
+                SetMessage(WithSourceNote(string.Join("\n", validation.Errors)));
                 return;
             }
 
@@ -102,7 +136,15 @@ namespace ReAction.Core
             PzLog.Info($"Plan executed: target={request.TargetZoneId ?? "-"} prompt=\"{prompt}\"");
             // 실행 중에는 무엇을 하고 있는지 보여준다. 다음 입력을 시작하면 지워진다.
             PlanText = ActionNames.DescribePlan(result.Actions);
-            SetMessage("");
+            // AI가 일부를 이해하지 못했다면 그 설명을, AI가 실패했다면 그 사실을 작게 알려준다.
+            SetMessage(WithSourceNote(result.Source == InterpretSource.Mock ? "" : result.Notes));
+        }
+
+        private string WithSourceNote(string message)
+        {
+            if (LastFallbackReason.Length == 0) return message;
+            string note = $"(AI 연결 실패 - 키워드 해석 사용: {LastFallbackReason})";
+            return string.IsNullOrEmpty(message) ? note : $"{message}\n{note}";
         }
 
         /// <summary>새 입력을 시작하면 지난 계획 요약과 안내를 지운다.</summary>

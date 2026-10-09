@@ -3,6 +3,7 @@ using System.IO;
 using ReAction.Actions;
 using ReAction.Core;
 using ReAction.Fx;
+using ReAction.Interpretation.Llm;
 using ReAction.Player;
 using ReAction.Replay;
 using ReAction.Stage;
@@ -29,6 +30,7 @@ namespace ReAction.Editor
         private const string CatalogPath = Root + "/ScriptableObjects/ActionCatalog.asset";
         private const string StagePath = Root + "/ScriptableObjects/Stages/Stage1.asset";
         private const string MockKeywordsPath = Root + "/Data/mock_keywords.json";
+        private const string LlmSettingsPath = Root + "/ScriptableObjects/LlmSettings.asset";
         private const string PlayerControllerPath = Root + "/Art/Animations/Player.controller";
         private const string PlayerPrefabPath = Root + "/Prefabs/Player.prefab";
 
@@ -54,6 +56,7 @@ namespace ReAction.Editor
             EnemyBuilder.EnsureSettings();
             FxBuilder.EnsureSettings();
             FxBuilder.EnsureVhsFeature();
+            EnsureLlmSettings();
 
             // 씬을 열면 저장 안 된 새 에셋이 언로드될 수 있다. 먼저 저장하고, 씬을 연 뒤 다시 불러 쓴다.
             AssetDatabase.SaveAssets();
@@ -120,6 +123,7 @@ namespace ReAction.Editor
             SetRef(planning, "_stage", stage);
             SetRef(planning, "_selector", selector);
             SetRef(planning, "_mockKeywords", AssetDatabase.LoadAssetAtPath<TextAsset>(MockKeywordsPath));
+            SetRef(planning, "_llmSettings", EnsureLlmSettings());
 
             PromptUIBuilder.Build(gameRoot.transform, game, planning, selector, PromptUIBuilder.EnsureFontAsset());
             FxBuilder.Build(gameRoot.transform, game, fxSettings);
@@ -193,6 +197,15 @@ namespace ReAction.Editor
                 if (zone.Kind == ZoneKind.Door) go.AddComponent<Door>().Setup(zone.Id);
                 else go.AddComponent<BreakableWindow>().Setup(zone.Id);
             }
+        }
+
+        private static LlmSettings EnsureLlmSettings()
+        {
+            var settings = AssetDatabase.LoadAssetAtPath<LlmSettings>(LlmSettingsPath);
+            if (settings != null) return settings;
+            settings = ScriptableObject.CreateInstance<LlmSettings>();
+            AssetDatabase.CreateAsset(settings, LlmSettingsPath);
+            return settings;
         }
 
         private static void WriteStage()

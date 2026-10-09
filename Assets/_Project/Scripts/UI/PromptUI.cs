@@ -63,7 +63,10 @@ namespace ReAction.UI
             UpdateDeathPanel(keyboard);
             UpdateFinalRun(keyboard);
 
-            _status.text = $"시도 #{_game.Attempt} · {StatusText()}";
+            string label = _planning.InterpreterLabel;
+            _status.text = label.Length > 0
+                ? $"시도 #{_game.Attempt} · {StatusText()} · {label}"
+                : $"시도 #{_game.Attempt} · {StatusText()}";
         }
 
         private string StatusText()
