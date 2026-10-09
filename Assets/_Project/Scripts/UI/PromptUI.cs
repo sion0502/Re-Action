@@ -156,10 +156,9 @@ namespace ReAction.UI
 
         private void OnSubmit(string text)
         {
+            // 입력창은 실행이 시작될 때 비운다 (OnStateChanged). AI 해석은 몇 초 걸려서
+            // 여기서는 아직 해석 중일 수 있다. 해석·검증에 실패하면 글자를 그대로 둬서 바로 고칠 수 있게 한다.
             _planning.Submit(text);
-            // 실행이 시작되면 입력창을 비운다. 해석·검증에 실패했으면 그대로 둬서 바로 고칠 수 있게 한다.
-            if (_game.State == GameState.Executing) _input.text = "";
-            _input.ActivateInputField();
         }
 
         private void OnValueChanged(string text)
@@ -172,7 +171,9 @@ namespace ReAction.UI
 
         private void OnStateChanged(GameState from, GameState to)
         {
-            _input.interactable = to == GameState.Planning || to == GameState.Interpreting;
+            // 해석 중에는 입력을 막는다 (그사이 친 글자가 다음 프롬프트에 섞이지 않게).
+            _input.interactable = to == GameState.Planning;
+            if (to == GameState.Executing) _input.text = "";
             if (to == GameState.Cleared || to == GameState.Result)
             {
                 _input.text = "";
