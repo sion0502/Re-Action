@@ -74,9 +74,90 @@ namespace ReAction.Tests
         [Test]
         public void LongerKeywordWins()
         {
-            Assert.That(Types(Interpret("점프 공격")), Is.EqualTo(new[] { ActionType.JumpAttack }));
+            Assert.That(Types(Interpret("점프 공격")), Is.EqualTo(new[] { ActionType.Jump, ActionType.Slash }));
             Assert.That(Types(Interpret("창문을 깨고 들어가")), Is.EqualTo(new[] { ActionType.CrashWindow, ActionType.Enter }));
-            Assert.That(Types(Interpret("적을 걷어차")), Is.EqualTo(new[] { ActionType.Kick }));
+            Assert.That(Types(Interpret("문을 걷어차")), Is.EqualTo(new[] { ActionType.KickDoor }));
+        }
+
+        [Test]
+        public void UnimplementedActions_MapToClosestImplemented()
+        {
+            Assert.That(Types(Interpret("적을 걷어차")), Is.EqualTo(new[] { ActionType.Slash }));
+            Assert.That(Types(Interpret("칼로 찔러")), Is.EqualTo(new[] { ActionType.Slash }));
+            Assert.That(Types(Interpret("이단 점프")), Is.EqualTo(new[] { ActionType.Jump }));
+            Assert.That(Types(Interpret("구르면서 공격")), Is.EqualTo(new[] { ActionType.Roll, ActionType.Slash }));
+        }
+
+        [Test]
+        public void GoVerb_IsRunWithDirection()
+        {
+            var r = Interpret("오른쪽으로 가");
+            Assert.That(Types(r), Is.EqualTo(new[] { ActionType.Run }));
+            Assert.That(r.Actions[0].Direction, Is.EqualTo(Direction.Right));
+
+            Assert.That(Types(Interpret("앞으로 가자")), Is.EqualTo(new[] { ActionType.Run }));
+            // 더 긴 동사가 먼저 잡힌다: "들어가", "걸어가", "사다리로 가"
+            Assert.That(Types(Interpret("들어가서 베어")), Is.EqualTo(new[] { ActionType.Enter, ActionType.Slash }));
+            Assert.That(Types(Interpret("걸어가서 기다려")), Is.EqualTo(new[] { ActionType.Walk, ActionType.Wait }));
+            Assert.That(Types(Interpret("사다리로 가")), Is.EqualTo(new[] { ActionType.ClimbLadder }));
+        }
+
+        [Test]
+        public void ClimbUp_ResolvedByTargetOrPlace()
+        {
+            var zones = new List<ZoneData>
+            {
+                new ZoneData { Id = "EXT", Kind = ZoneKind.Exterior, Connections = new[] { "Wall_W" } },
+                new ZoneData { Id = "Wall_W", Kind = ZoneKind.ExteriorWall },
+                new ZoneData { Id = "1F", Kind = ZoneKind.Room, Connections = new[] { "Ladder_1" } },
+                new ZoneData { Id = "Ladder_1", Kind = ZoneKind.Ladder },
+            };
+
+            Assert.That(Types(Interpret("올라가", current: "EXT", zones: zones)), Is.EqualTo(new[] { ActionType.WallClimb }));
+            Assert.That(Types(Interpret("위로 올라가", current: "1F", zones: zones)), Is.EqualTo(new[] { ActionType.ClimbLadder }));
+            Assert.That(Types(Interpret("올라가", current: "EXT", target: "Ladder_1", zones: zones)),
+                Is.EqualTo(new[] { ActionType.ClimbLadder }));
+            // "타고 올라가"는 앞의 오르기 하나로 센다
+            Assert.That(Types(Interpret("사다리 타고 올라가서 베어")), Is.EqualTo(new[] { ActionType.ClimbLadder, ActionType.Slash }));
+            Assert.That(Types(Interpret("벽을 타고 올라가", current: "1F", zones: zones)), Is.EqualTo(new[] { ActionType.WallClimb }));
+        }
+
+        [Test]
+        public void SameMotionInTwoWords_CountsOnce()
+        {
+            Assert.That(Types(Interpret("점프해서 넘어")), Is.EqualTo(new[] { ActionType.Jump }));
+            Assert.That(Types(Interpret("살금살금 걸어")), Is.EqualTo(new[] { ActionType.Walk }));
+            // 공격은 두 번 말하면 두 번이다
+            Assert.That(Types(Interpret("베고 베어")), Is.EqualTo(new[] { ActionType.Slash, ActionType.Slash }));
+        }
+
+        [Test]
+        public void EnterThroughWindow_BreaksItFirst()
+        {
+            Assert.That(Types(Interpret("창문으로 들어가")), Is.EqualTo(new[] { ActionType.CrashWindow, ActionType.Enter }));
+            Assert.That(Types(Interpret("창문으로 뛰어들어")), Is.EqualTo(new[] { ActionType.CrashWindow, ActionType.Enter }));
+        }
+
+        [Test]
+        public void PlaceWordFront_IsNotADirection()
+        {
+            var r = Interpret("적 앞까지 달려");
+            Assert.That(Types(r), Is.EqualTo(new[] { ActionType.Run }));
+            Assert.That(r.Actions[0].Direction, Is.EqualTo(Direction.None));
+        }
+
+        [Test]
+        public void MoreSynonyms()
+        {
+            Assert.That(Types(Interpret("때려")), Is.EqualTo(new[] { ActionType.Slash }));
+            Assert.That(Types(Interpret("몸을 날려")), Is.EqualTo(new[] { ActionType.Roll }));
+            Assert.That(Types(Interpret("높이 뛰어")), Is.EqualTo(new[] { ActionType.Jump }));
+            Assert.That(Types(Interpret("유리창 박살내")), Is.EqualTo(new[] { ActionType.CrashWindow }));
+            Assert.That(Types(Interpret("반대로 돌아")), Is.EqualTo(new[] { ActionType.Turn }));
+            Assert.That(Types(Interpret("문을 쾅 차")), Is.EqualTo(new[] { ActionType.KickDoor }));
+            Assert.That(Types(Interpret("문을 때려 부숴")), Is.EqualTo(new[] { ActionType.BreakDoor }));
+            Assert.That(Types(Interpret("거리를 벌려")), Is.EqualTo(new[] { ActionType.Backstep }));
+            Assert.That(Types(Interpret("타이밍을 재")), Is.EqualTo(new[] { ActionType.Wait }));
         }
 
         [Test]

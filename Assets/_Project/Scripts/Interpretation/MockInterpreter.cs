@@ -29,7 +29,7 @@ namespace ReAction.Interpretation
             var result = new InterpretResult { Raw = request.Prompt ?? "" };
             string text = request.Prompt ?? "";
 
-            var actions = SelectLongestNonOverlapping(FindAll(text, _table.Actions));
+            var actions = MergeDuplicates(text, Expand(SelectLongestNonOverlapping(FindAll(text, _table.Actions))));
             var actionRanges = actions.Select(m => (m.Start, m.End)).ToList();
             var modifiers = SelectLongestNonOverlapping(FindModifiers(text).Where(m => !Overlaps(m, actionRanges)));
 
@@ -43,6 +43,7 @@ namespace ReAction.Interpretation
             AssignDirections(actions, directions, requests);
             var repeats = ApplyModifiers(actions, modifiers, requests);
             requests = ExpandRepeats(requests, repeats);
+            ResolveClimbUp(request, requests);
             AssignTargets(request, requests);
 
             result.Actions = requests;
@@ -71,6 +72,76 @@ namespace ReAction.Interpretation
             {
                 foreach (System.Text.RegularExpressions.Match m in pattern.Regex.Matches(text))
                     yield return new Match<T>(m.Index, m.Length, pattern.Value);
+            }
+        }
+
+        /// <summary>키워드 하나가 행동 여러 개인 경우 ("점프 공격") 같은 위치의 행동들로 펼친다.</summary>
+        private static List<Match<ActionType>> Expand(List<Match<ActionType[]>> matches)
+        {
+            var expanded = new List<Match<ActionType>>();
+            foreach (var m in matches)
+            {
+                foreach (var type in m.Value)
+                    expanded.Add(new Match<ActionType>(m.Start, m.End - m.Start, type));
+            }
+            return expanded;
+        }
+
+        // "점프해서 넘어", "살금살금 걸어"처럼 같은 동작을 두 단어로 말한 것. "베고 베어"는 두 번으로 둔다.
+        private static readonly System.Text.RegularExpressions.Regex SameMotionGap =
+            new System.Text.RegularExpressions.Regex(@"^\s*(?:해서|하여|해|서)?\s*$");
+
+        private static readonly HashSet<ActionType> MergeableMoves = new HashSet<ActionType>
+            { ActionType.Run, ActionType.Walk, ActionType.Sprint, ActionType.Jump };
+
+        /// <summary>
+        /// 한 동작을 두 단어로 말한 것을 하나로 합친다.
+        /// "벽을 타고 올라가", "사다리 타고 올라가"의 "올라가"는 앞의 오르기 행동에 포함된다.
+        /// </summary>
+        private static List<Match<ActionType>> MergeDuplicates(string text, List<Match<ActionType>> actions)
+        {
+            var merged = new List<Match<ActionType>>();
+            foreach (var m in actions)
+            {
+                if (merged.Count > 0)
+                {
+                    var prev = merged[merged.Count - 1];
+                    bool climbContinues = m.Value == ActionType.None &&
+                        (prev.Value == ActionType.WallClimb || prev.Value == ActionType.ClimbLadder);
+                    bool sameMove = m.Value == prev.Value && MergeableMoves.Contains(m.Value) && m.Start >= prev.End &&
+                        SameMotionGap.IsMatch(text.Substring(prev.End, m.Start - prev.End));
+                    if (climbContinues || sameMove)
+                    {
+                        merged[merged.Count - 1] = new Match<ActionType>(prev.Start, m.End - prev.Start, prev.Value);
+                        continue;
+                    }
+                }
+                merged.Add(m);
+            }
+            return merged;
+        }
+
+        /// <summary>
+        /// "올라가"(ClimbUp)를 상황에 맞는 오르기로 정한다: 목표가 벽이면 벽 타기, 사다리면 사다리.
+        /// 목표가 없으면 건물 밖에서는 벽 타기, 안에서는 사다리.
+        /// </summary>
+        private static void ResolveClimbUp(InterpretRequest request, List<ActionRequest> requests)
+        {
+            var target = request.RevealedZones.FirstOrDefault(z => z.Id == request.TargetZoneId);
+            var current = request.RevealedZones.FirstOrDefault(z => z.Id == request.CurrentZoneId);
+            ActionType climb;
+            if (target != null && target.Kind == ZoneKind.ExteriorWall) climb = ActionType.WallClimb;
+            else if (target != null && target.Kind == ZoneKind.Ladder) climb = ActionType.ClimbLadder;
+            else if (current != null && (current.Kind == ZoneKind.Exterior || current.Kind == ZoneKind.ExteriorWall))
+                climb = ActionType.WallClimb;
+            else climb = ActionType.ClimbLadder;
+
+            for (int i = 0; i < requests.Count; i++)
+            {
+                if (requests[i].Type != ActionType.None) continue;
+                var r = requests[i];
+                r.Type = climb;
+                requests[i] = r;
             }
         }
 

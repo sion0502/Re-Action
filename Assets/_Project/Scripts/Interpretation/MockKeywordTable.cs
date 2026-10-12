@@ -28,7 +28,14 @@ namespace ReAction.Interpretation
             public T Value { get; }
         }
 
-        public List<Pattern<ActionType>> Actions { get; } = new List<Pattern<ActionType>>();
+        /// <summary>
+        /// JSON type "ClimbUp": "올라가"처럼 무엇을 타고 오를지 상황에 따라 정해지는 말.
+        /// 파싱 중에는 ActionType.None으로 두고, 해석기가 목표·현재 구역을 보고 벽 타기/사다리로 정한다.
+        /// </summary>
+        public const string ClimbUpType = "ClimbUp";
+
+        /// <summary>키워드 하나가 행동 여러 개가 될 수 있다 ("점프 공격" → 점프, 베기).</summary>
+        public List<Pattern<ActionType[]>> Actions { get; } = new List<Pattern<ActionType[]>>();
         public List<Pattern<Direction>> Directions { get; } = new List<Pattern<Direction>>();
         public List<Regex> Ignore { get; } = new List<Regex>();
 
@@ -57,12 +64,16 @@ namespace ReAction.Interpretation
             var data = JsonUtility.FromJson<Data>(json) ?? throw new ArgumentException("Invalid keyword json");
             var table = new MockKeywordTable();
 
+            // 아직 구현하지 않은 행동은 가장 비슷한 행동으로 바꾼다 ("찔러" → 베기). 구현하면 별칭에서 지운다.
+            var aliases = new Dictionary<string, string>();
+            foreach (var alias in data.aliases ?? Array.Empty<AliasEntry>()) aliases[alias.from] = alias.to;
+
             foreach (var entry in data.actions ?? Array.Empty<ActionEntry>())
             {
-                if (!Enum.TryParse(entry.type, out ActionType type))
-                    throw new ArgumentException($"Unknown ActionType in keyword table: {entry.type}");
+                var names = entry.types != null && entry.types.Length > 0 ? entry.types : new[] { entry.type };
+                var types = names.Select(name => ParseActionType(name, aliases)).ToArray();
                 foreach (var keyword in entry.keywords)
-                    table.Actions.Add(new Pattern<ActionType>(Compile(keyword), type));
+                    table.Actions.Add(new Pattern<ActionType[]>(Compile(keyword), types));
             }
 
             foreach (var entry in data.directions ?? Array.Empty<DirectionEntry>())
@@ -88,6 +99,15 @@ namespace ReAction.Interpretation
             if (data.briefSeconds > 0f) table.BriefSeconds = data.briefSeconds;
 
             return table;
+        }
+
+        private static ActionType ParseActionType(string name, Dictionary<string, string> aliases)
+        {
+            if (name == ClimbUpType) return ActionType.None;
+            if (aliases.TryGetValue(name, out var alias)) name = alias;
+            if (!Enum.TryParse(name, out ActionType type) || type == ActionType.None)
+                throw new ArgumentException($"Unknown ActionType in keyword table: {name}");
+            return type;
         }
 
         private static void AddAll(List<Regex> target, string[] keywords)
@@ -118,6 +138,7 @@ namespace ReAction.Interpretation
         private sealed class Data
         {
             public ActionEntry[] actions;
+            public AliasEntry[] aliases;
             public DirectionEntry[] directions;
             public string[] ignore;
             public NumberWord[] numberWords;
@@ -142,7 +163,16 @@ namespace ReAction.Interpretation
         private sealed class ActionEntry
         {
             public string type;
+            /// <summary>type 대신 쓰면 키워드 하나가 행동 여러 개가 된다.</summary>
+            public string[] types;
             public string[] keywords;
+        }
+
+        [Serializable]
+        private sealed class AliasEntry
+        {
+            public string from;
+            public string to;
         }
 
         [Serializable]
