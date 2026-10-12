@@ -73,7 +73,12 @@ namespace ReAction.Stage
             _game.WorldReset -= UpdatePlayerZone;
         }
 
-        private void Start() => UpdatePlayerZone();
+        private void Start()
+        {
+            UpdatePlayerZone();
+            // 메인 화면에서는 배경으로 건물 전체가 보이게 한다.
+            if (_game != null && _game.StartsWithTitle) HideAllFog();
+        }
 
         public ZoneData GetZone(string zoneId) => Graph.Get(zoneId);
         public Door GetDoor(string zoneId) => zoneId != null && _doors.TryGetValue(zoneId, out var d) ? d : null;
@@ -130,6 +135,13 @@ namespace ReAction.Stage
                 if (zone.Kind.IsSpace() || Knowledge.IsRevealed(zone.Id)) continue;
                 if (System.Array.IndexOf(zone.Connections, zoneId) >= 0) Knowledge.Reveal(zone.Id);
             }
+        }
+
+        /// <summary>메인 화면 배경용: 안개를 화면에서만 모두 걷는다. 플레이어 지식(발견 정보)은 바꾸지 않는다.</summary>
+        public void HideAllFog()
+        {
+            foreach (var fog in _fog.Values) fog.gameObject.SetActive(false);
+            _fading.Clear();
         }
 
         private void Update()

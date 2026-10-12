@@ -15,6 +15,7 @@ namespace ReAction.Core
     /// (_planningTimeScale), Interpreting과 그 밖의 상태는 정지.
     /// 플레이어가 죽으면 Dead(다시 시작 버튼 대기) → Rewind(되감기 연출) → Reset(월드 초기화, 발견 정보는 유지) → Planning.
     /// 옥상에 닿으면 Cleared(잠깐) → FinalRun(이번 시도를 멈춤 없이 재생) → Result.
+    /// 씬을 처음 열면 Title(메인 화면): 월드는 배경으로 정상 속도로 돌고 고블린은 순찰만 한다.
     /// </summary>
     public sealed class GameController : MonoBehaviour
     {
@@ -55,6 +56,9 @@ namespace ReAction.Core
         private int _clearTick;
 
         public GameState State => _states.Current;
+
+        /// <summary>이 씬이 메인 화면으로 시작하는지 (Awake에서 정해진다). 메인 화면에서는 해석기를 만들지 않는다.</summary>
+        public bool StartsWithTitle { get; private set; }
         public int Tick => _sim?.Tick ?? 0;
         public ActionCatalog Catalog => _catalog;
         public PlayerAction CurrentAction => _sim?.Executor.Current;
@@ -69,7 +73,8 @@ namespace ReAction.Core
             {
                 switch (_states.Current)
                 {
-                    case GameState.Executing: return 1f;
+                    case GameState.Executing:
+                    case GameState.Title: return 1f;
                     case GameState.Planning: return _planningTimeScale;
                     default: return 0f;
                 }
@@ -138,6 +143,7 @@ namespace ReAction.Core
         private void Awake()
         {
             Physics2D.simulationMode = SimulationMode2D.Script;
+            StartsWithTitle = !GameLaunchOptions.SkipTitle;
 
             _sim = new WorldSimulation(_player);
             _sim.Ticked += OnSimTicked;
@@ -172,7 +178,25 @@ namespace ReAction.Core
             }
             _resetter.CaptureAll();
             _recorder.Record();
-            _states.TryTransition(GameState.Planning);
+            if (StartsWithTitle) EnterTitle();
+            else _states.TryTransition(GameState.Planning);
+        }
+
+        private void EnterTitle()
+        {
+            _states.TryTransition(GameState.Title);
+            for (int i = 0; i < _enemies.Count; i++)
+            {
+                if (_enemies[i] != null) _enemies[i].StartPatrol(i);
+            }
+        }
+
+        /// <summary>사망 화면에서 "메인 화면으로". 씬을 새로 불러온다.</summary>
+        public bool RequestReturnToTitle()
+        {
+            if (!CanRestart) return false;
+            GameLaunchOptions.ReturnToTitle();
+            return true;
         }
 
         /// <summary>Planning → Interpreting. 해석 중에는 다른 입력을 받지 않는다.</summary>
@@ -297,6 +321,12 @@ namespace ReAction.Core
                         SimulateTick();
                     break;
 
+                case GameState.Title:
+                    // 배경 연출. 실제 게임과 섞이지 않도록 게임을 시작할 때 씬을 새로 불러온다.
+                    int titleSteps = _clock.Advance(Time.deltaTime);
+                    for (int i = 0; i < titleSteps; i++) _sim.Step();
+                    break;
+
                 case GameState.Dead:
                     // 자동으로 넘어가지 않는다. 연출 시간이 지나면 다시 시작 버튼이 활성화된다.
                     if (_deadTimer > 0f) _deadTimer -= Time.deltaTime;
@@ -374,7 +404,8 @@ namespace ReAction.Core
 
         private void OnSimTicked(int tick)
         {
-            _recorder.Record();
+            // 메인 화면은 되감을 일이 없으니 기록하지 않는다 (오래 켜 두어도 메모리가 늘지 않게).
+            if (_states.Current != GameState.Title) _recorder.Record();
             Ticked?.Invoke(tick);
         }
 

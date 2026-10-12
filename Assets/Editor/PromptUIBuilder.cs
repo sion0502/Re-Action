@@ -18,7 +18,7 @@ namespace ReAction.Editor
     {
         private const string FontPath = "Assets/_Project/Art/Fonts/Galmuri11.ttf";
         private const string FontAssetPath = "Assets/_Project/Art/Fonts/Galmuri11.asset";
-        private const int FontSize = 11;
+        internal const int FontSize = 11;
 
         private static readonly Color BarColor = new Color(0f, 0f, 0f, 0.75f);
         private static readonly Color FieldColor = new Color(0.12f, 0.12f, 0.15f, 1f);
@@ -90,7 +90,7 @@ namespace ReAction.Editor
             Place(status.rectTransform, new Vector2(0f, 1f), new Vector2(0f, 1f), new Vector2(0f, 1f),
                 new Vector2(8f, -6f), new Vector2(620f, 14f));
 
-            var (deathPanel, deathText, restartButton) = CreateDeathPanel(root, font);
+            var (deathPanel, deathText, restartButton, titleButton) = CreateDeathPanel(root, font);
 
             var title = CreateText("Title", root, font, TextColor, TextAlignmentOptions.Top);
             title.fontSize = FontSize * 2;
@@ -109,12 +109,16 @@ namespace ReAction.Editor
             SetRef(ui, "_deathPanel", deathPanel);
             SetRef(ui, "_deathText", deathText);
             SetRef(ui, "_restartButton", restartButton);
+            SetRef(ui, "_titleButton", titleButton);
             return ui;
         }
 
-        /// <summary>사망 시 가운데에 뜨는 패널: 사망 원인 + 다시 시작 버튼. 평소엔 꺼져 있다.</summary>
-        private static (GameObject panel, TextMeshProUGUI cause, Button button) CreateDeathPanel(Transform root,
-            TMP_FontAsset font)
+        /// <summary>
+        /// 사망 시 가운데에 뜨는 패널: 사망 원인 + 다시 시작 / 메인 화면으로 버튼. 평소엔 꺼져 있다.
+        /// 두 버튼의 가로 위치는 PromptUI가 정한다 (결과 화면에서는 다시 시작만 가운데).
+        /// </summary>
+        private static (GameObject panel, TextMeshProUGUI cause, Button restart, Button title) CreateDeathPanel(
+            Transform root, TMP_FontAsset font)
         {
             var panel = CreateRect("DeathPanel", root, new Vector2(0.5f, 0.5f), new Vector2(0.5f, 0.5f),
                 new Vector2(0.5f, 0.5f), new Vector2(0f, 20f), new Vector2(240f, 84f));
@@ -124,11 +128,21 @@ namespace ReAction.Editor
             Place(cause.rectTransform, new Vector2(0f, 1f), new Vector2(1f, 1f), new Vector2(0.5f, 1f),
                 new Vector2(0f, -6f), new Vector2(-12f, 46f));
 
+            var restart = CreateButton("RestartButton", panel, font, "다시 시작 (Enter)", new Vector2(-58f, 8f));
+            var title = CreateButton("TitleButton", panel, font, "메인 화면으로 (Esc)", new Vector2(58f, 8f));
+
+            panel.gameObject.SetActive(false);
+            return (panel.gameObject, cause, restart, title);
+        }
+
+        private static Button CreateButton(string name, Transform parent, TMP_FontAsset font, string text,
+            Vector2 position)
+        {
             var buttonGo = TMP_DefaultControls.CreateButton(new TMP_DefaultControls.Resources());
-            buttonGo.name = "RestartButton";
-            buttonGo.transform.SetParent(panel, false);
+            buttonGo.name = name;
+            buttonGo.transform.SetParent(parent, false);
             Place((RectTransform)buttonGo.transform, new Vector2(0.5f, 0f), new Vector2(0.5f, 0f), new Vector2(0.5f, 0f),
-                new Vector2(0f, 8f), new Vector2(150f, 20f));
+                position, new Vector2(110f, 20f));
             var button = buttonGo.GetComponent<Button>();
             var colors = button.colors;
             colors.normalColor = FieldColor;
@@ -143,10 +157,8 @@ namespace ReAction.Editor
             label.fontSize = FontSize;
             label.color = TextColor;
             label.extraPadding = false;
-            label.text = "다시 시작 (Enter)";
-
-            panel.gameObject.SetActive(false);
-            return (panel.gameObject, cause, button);
+            label.text = text;
+            return button;
         }
 
         private static TMP_InputField CreateInputField(Transform bar, TMP_FontAsset font)
@@ -192,7 +204,7 @@ namespace ReAction.Editor
             return input;
         }
 
-        private static TextMeshProUGUI CreateText(string name, Transform parent, TMP_FontAsset font, Color color,
+        internal static TextMeshProUGUI CreateText(string name, Transform parent, TMP_FontAsset font, Color color,
             TextAlignmentOptions alignment)
         {
             var go = new GameObject(name, typeof(RectTransform), typeof(TextMeshProUGUI));
@@ -218,7 +230,7 @@ namespace ReAction.Editor
             return rect;
         }
 
-        private static void Place(RectTransform rect, Vector2 anchorMin, Vector2 anchorMax, Vector2 pivot,
+        internal static void Place(RectTransform rect, Vector2 anchorMin, Vector2 anchorMax, Vector2 pivot,
             Vector2 position, Vector2 size)
         {
             rect.anchorMin = anchorMin;
@@ -228,7 +240,7 @@ namespace ReAction.Editor
             rect.sizeDelta = size;
         }
 
-        private static void SetRef(Object target, string field, Object value)
+        internal static void SetRef(Object target, string field, Object value)
         {
             var so = new SerializedObject(target);
             so.FindProperty(field).objectReferenceValue = value;

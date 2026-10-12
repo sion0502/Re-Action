@@ -26,6 +26,10 @@ namespace ReAction.UI
         [SerializeField] private GameObject _deathPanel;
         [SerializeField] private TMP_Text _deathText;
         [SerializeField] private Button _restartButton;
+        [Tooltip("사망 화면의 \"메인 화면으로\" 버튼 (Esc)")]
+        [SerializeField] private Button _titleButton;
+        [Tooltip("사망 화면에서 두 버튼을 나란히 둘 때 가운데에서 떨어진 거리")]
+        [SerializeField] private float _deathButtonOffset = 58f;
 
         [Header("Tutorial")]
         [Tooltip("입력칸이 비어 있을 때 돌아가며 보여주는 예시 프롬프트")]
@@ -57,6 +61,7 @@ namespace ReAction.UI
             _input.onSubmit.AddListener(OnSubmit);
             _input.onValueChanged.AddListener(OnValueChanged);
             _restartButton.onClick.AddListener(OnRestartClicked);
+            if (_titleButton != null) _titleButton.onClick.AddListener(OnTitleClicked);
             _planning.Changed += Refresh;
             _game.StateChanged += OnStateChanged;
         }
@@ -66,6 +71,7 @@ namespace ReAction.UI
             _input.onSubmit.RemoveListener(OnSubmit);
             _input.onValueChanged.RemoveListener(OnValueChanged);
             _restartButton.onClick.RemoveListener(OnRestartClicked);
+            if (_titleButton != null) _titleButton.onClick.RemoveListener(OnTitleClicked);
             _planning.Changed -= Refresh;
             _game.StateChanged -= OnStateChanged;
         }
@@ -152,8 +158,8 @@ namespace ReAction.UI
         }
 
         /// <summary>
-        /// 죽으면 원인과 다시 시작 버튼을, FINAL RUN이 끝나면 결과와 처음부터 다시 버튼을 띄운다.
-        /// 사망 연출이 끝나야 누를 수 있다 (Enter도 가능).
+        /// 죽으면 원인과 다시 시작·메인 화면으로 버튼을, FINAL RUN이 끝나면 결과와 처음부터 다시 버튼을 띄운다.
+        /// 사망 연출이 끝나야 누를 수 있다 (Enter: 다시 시작, Esc: 메인 화면으로).
         /// </summary>
         private void UpdateDeathPanel(Keyboard keyboard)
         {
@@ -167,12 +173,24 @@ namespace ReAction.UI
             if (_restartLabel == null) _restartLabel = _restartButton.GetComponentInChildren<TMP_Text>();
             if (_restartLabel != null) _restartLabel.text = result ? "처음부터 다시 (Enter)" : "다시 시작 (Enter)";
             _restartButton.interactable = _game.CanRestart;
-            if (_game.CanRestart && keyboard != null &&
-                (keyboard.enterKey.wasPressedThisFrame || keyboard.numpadEnterKey.wasPressedThisFrame))
+            if (_titleButton != null)
+            {
+                if (_titleButton.gameObject.activeSelf != dead) _titleButton.gameObject.SetActive(dead);
+                _titleButton.interactable = _game.CanRestart;
+                var pos = ((RectTransform)_restartButton.transform).anchoredPosition;
+                ((RectTransform)_restartButton.transform).anchoredPosition =
+                    new Vector2(dead ? -_deathButtonOffset : 0f, pos.y);
+            }
+            if (!_game.CanRestart || keyboard == null) return;
+            if (keyboard.enterKey.wasPressedThisFrame || keyboard.numpadEnterKey.wasPressedThisFrame)
                 _game.RequestRestart();
+            else if (dead && _titleButton != null && keyboard.escapeKey.wasPressedThisFrame)
+                _game.RequestReturnToTitle();
         }
 
         private void OnRestartClicked() => _game.RequestRestart();
+
+        private void OnTitleClicked() => _game.RequestReturnToTitle();
 
         private string ResultText()
         {

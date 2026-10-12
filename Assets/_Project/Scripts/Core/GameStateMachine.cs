@@ -10,7 +10,9 @@ namespace ReAction.Core
     {
         private static readonly Dictionary<GameState, GameState[]> Allowed = new Dictionary<GameState, GameState[]>
         {
-            { GameState.Boot, new[] { GameState.Planning } },
+            { GameState.Boot, new[] { GameState.Planning, GameState.Title } },
+            // 메인 화면에서 게임을 시작하면 씬을 새로 불러온다 (메인 화면의 월드 상태가 게임에 섞이지 않게)
+            { GameState.Title, new GameState[0] },
             // 계획 중에도 시간이 아주 느리게 흐르므로 그 사이에 죽을 수 있다
             { GameState.Planning, new[] { GameState.Interpreting, GameState.Executing, GameState.Dead } },
             { GameState.Interpreting, new[] { GameState.Planning, GameState.Executing } },

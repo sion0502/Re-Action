@@ -57,6 +57,7 @@ namespace ReAction.Editor
             FxBuilder.EnsureSettings();
             FxBuilder.EnsureVhsFeature();
             EnsureLlmSettings();
+            TitleLogoBuilder.Build();
 
             // 씬을 열면 저장 안 된 새 에셋이 언로드될 수 있다. 먼저 저장하고, 씬을 연 뒤 다시 불러 쓴다.
             AssetDatabase.SaveAssets();
@@ -125,7 +126,9 @@ namespace ReAction.Editor
             SetRef(planning, "_mockKeywords", AssetDatabase.LoadAssetAtPath<TextAsset>(MockKeywordsPath));
             SetRef(planning, "_llmSettings", EnsureLlmSettings());
 
-            PromptUIBuilder.Build(gameRoot.transform, game, planning, selector, PromptUIBuilder.EnsureFontAsset());
+            var font = PromptUIBuilder.EnsureFontAsset();
+            var promptUi = PromptUIBuilder.Build(gameRoot.transform, game, planning, selector, font);
+            TitleScreenBuilder.Build(gameRoot.transform, promptUi.gameObject, EnsureLlmSettings(), font);
             var fx = FxBuilder.Build(gameRoot.transform, game, fxSettings);
             FxBuilder.BuildFeedback(fx.gameObject, game, planning, stage);
 

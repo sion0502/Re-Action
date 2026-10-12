@@ -47,6 +47,9 @@ namespace ReAction.Core
 
         private void Start()
         {
+            // 메인 화면에서는 해석기를 만들지 않는다 (Ollama 모델을 미리 올리지 않게). 게임을 시작하면 씬을 다시 불러온다.
+            if (_game.StartsWithTitle) return;
+
             // StageController.Awake에서 그래프가 만들어진 뒤에 초기화한다.
             var allowed = _game.Catalog.Definitions.Where(d => d != null).Select(d => d.Type).ToList();
             _interpreter = CreateInterpreter(allowed);
@@ -56,18 +59,25 @@ namespace ReAction.Core
 
         private void OnDestroy() => _cts?.Cancel();
 
-        /// <summary>LLM을 쓸 수 있으면 LLM 해석기(실패 시 키워드 해석기로 대체), 아니면 키워드 해석기.</summary>
+        /// <summary>
+        /// LLM을 쓸 수 있으면 LLM 해석기(실패 시 키워드 해석기로 대체), 아니면 키워드 해석기.
+        /// 메인 화면에서 고른 방식이 있으면 그것을 따른다 (로컬 LLM = Ollama, 키워드 = LLM에 전혀 연결하지 않음).
+        /// </summary>
         private IActionInterpreter CreateInterpreter(System.Collections.Generic.List<ActionType> allowed)
         {
             var mock = new MockInterpreter(MockKeywordTable.FromJson(_mockKeywords.text));
-            if (_llmSettings == null || !_llmSettings.Enabled)
+            var choice = GameLaunchOptions.Interpreter;
+            bool useLlm = choice == InterpreterChoice.LocalLlm ||
+                          (choice == InterpreterChoice.FromSettings && _llmSettings != null && _llmSettings.Enabled);
+            if (_llmSettings == null || !useLlm)
             {
                 InterpreterLabel = "키워드 해석";
+                PzLog.Info($"Using keyword interpreter (choice {choice})");
                 return mock;
             }
 
             ILlmProvider provider;
-            if (_llmSettings.Provider == LlmProviderKind.Ollama)
+            if (choice == InterpreterChoice.LocalLlm || _llmSettings.Provider == LlmProviderKind.Ollama)
             {
                 var ollama = new OllamaProvider(_llmSettings);
                 ollama.WarmUp(); // 첫 프롬프트 전에 모델을 GPU에 올려 둔다
