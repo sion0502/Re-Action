@@ -74,6 +74,7 @@ namespace ReAction.Core
                 switch (_states.Current)
                 {
                     case GameState.Executing:
+                    case GameState.FinalRun: // 리플레이는 정상 속도로 재생된다 (애니메이션도 같이)
                     case GameState.Title: return 1f;
                     case GameState.Planning: return _planningTimeScale;
                     default: return 0f;
