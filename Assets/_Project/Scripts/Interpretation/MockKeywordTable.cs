@@ -48,6 +48,8 @@ namespace ReAction.Interpretation
         public List<Regex> UntilBlocked { get; } = new List<Regex>();
         public List<Regex> Brief { get; } = new List<Regex>();
         public float BriefSeconds { get; private set; } = 0.5f;
+        /// <summary>정도를 나타내는 말 → 기본 거리·시간의 배수 ("조금" 0.5, "멀리" 2).</summary>
+        public List<Pattern<float>> ScaleWords { get; } = new List<Pattern<float>>();
         public List<Regex> Slow { get; } = new List<Regex>();
         public List<Regex> Fast { get; } = new List<Regex>();
 
@@ -94,6 +96,8 @@ namespace ReAction.Interpretation
             table.Amount = CompileAmount(table);
             AddAll(table.UntilBlocked, data.untilBlocked);
             AddAll(table.Brief, data.brief);
+            foreach (var s in data.scaleWords ?? Array.Empty<ScaleWord>())
+                table.ScaleWords.Add(new Pattern<float>(Compile(s.word), s.scale));
             AddAll(table.Slow, data.slow);
             AddAll(table.Fast, data.fast);
             if (data.briefSeconds > 0f) table.BriefSeconds = data.briefSeconds;
@@ -148,8 +152,16 @@ namespace ReAction.Interpretation
             public string[] untilBlocked;
             public string[] brief;
             public float briefSeconds;
+            public ScaleWord[] scaleWords;
             public string[] slow;
             public string[] fast;
+        }
+
+        [Serializable]
+        private sealed class ScaleWord
+        {
+            public string word;
+            public float scale;
         }
 
         [Serializable]

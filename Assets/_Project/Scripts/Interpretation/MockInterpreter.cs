@@ -204,6 +204,8 @@ namespace ReAction.Interpretation
         {
             Amount,
             Repeat,
+            /// <summary>"조금", "멀리": 기본 거리·시간의 배수</summary>
+            Scale,
             Slow,
             Fast,
         }
@@ -243,6 +245,11 @@ namespace ReAction.Interpretation
                 yield return new Match<Modifier>(m.Start, m.End - m.Start, new Modifier(ModifierKind.Amount, 0f, AmountUnit.UntilBlocked));
             foreach (var m in FindKeywords(text, _table.Brief))
                 yield return new Match<Modifier>(m.Start, m.End - m.Start, new Modifier(ModifierKind.Amount, _table.BriefSeconds, AmountUnit.Seconds));
+            foreach (var pattern in _table.ScaleWords)
+            {
+                foreach (System.Text.RegularExpressions.Match m in pattern.Regex.Matches(text))
+                    yield return new Match<Modifier>(m.Index, m.Length, new Modifier(ModifierKind.Scale, pattern.Value));
+            }
             foreach (var m in FindKeywords(text, _table.Slow))
                 yield return new Match<Modifier>(m.Start, m.End - m.Start, new Modifier(ModifierKind.Slow));
             foreach (var m in FindKeywords(text, _table.Fast))
@@ -278,6 +285,16 @@ namespace ReAction.Interpretation
                         var r = requests[i];
                         r.Amount = mod.Value;
                         r.Unit = mod.Unit;
+                        requests[i] = r;
+                        break;
+                    }
+                    case ModifierKind.Scale:
+                    {
+                        int i = FindAttachIndex(actions, requests, m.Start, m.End, r => !r.HasAmount && IsScalable(r.Type));
+                        if (i < 0) break;
+                        var r = requests[i];
+                        r.Amount = mod.Value;
+                        r.Unit = AmountUnit.Scale;
                         requests[i] = r;
                         break;
                     }
@@ -357,6 +374,11 @@ namespace ReAction.Interpretation
             }
             return candidates.Count == 1 ? candidates[0].Id : null;
         }
+
+        /// <summary>"조금"·"멀리"로 거리·시간을 바꿀 수 있는 행동.</summary>
+        private static bool IsScalable(ActionType type) =>
+            IsMove(type) || type == ActionType.Backstep || type == ActionType.Jump || type == ActionType.Roll ||
+            type == ActionType.Slide || type == ActionType.Wait;
 
         private static bool IsMove(ActionType type) =>
             type == ActionType.Run || type == ActionType.Walk || type == ActionType.Sprint;

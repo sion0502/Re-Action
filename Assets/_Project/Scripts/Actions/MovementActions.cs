@@ -6,7 +6,8 @@ namespace ReAction.Actions
 {
     /// <summary>
     /// 달리기·걷기·전력 질주 (속도만 다르고 정의 에셋으로 구분). 끝나는 조건:
-    /// "N초 동안" → 시간, "N칸" → 거리, "벽까지" → 막힐 때까지(성공), 목표 구역 클릭 → 그 구역 중앙, 그 외 → 기본 거리.
+    /// "N초 동안" → 시간, "N칸" → 거리, "벽까지" → 막힐 때까지(성공), 목표 구역 클릭 → 그 구역 중앙,
+    /// 그 외 → 기본 거리 × 배수 ("조금" 0.5, "멀리" 2).
     /// 목표·벽까지가 아닌데 막히면 실패.
     /// </summary>
     public sealed class RunAction : PlayerAction
@@ -26,6 +27,8 @@ namespace ReAction.Actions
                 float seconds = Definition.Timeout;
                 if (Request.Unit == AmountUnit.Seconds) seconds = Mathf.Max(seconds, Request.Amount + TimeoutMargin);
                 if (Request.Unit == AmountUnit.Units) seconds = Mathf.Max(seconds, Request.Amount / Definition.Speed + TimeoutMargin);
+                if (Request.Unit == AmountUnit.Scale)
+                    seconds = Mathf.Max(seconds, Definition.Distance * Request.Scale / Definition.Speed + TimeoutMargin);
                 if (Request.Unit == AmountUnit.UntilBlocked || _targetX.HasValue) seconds = Mathf.Max(seconds, 6f);
                 return DeterministicClock.SecondsToTicks(seconds);
             }
@@ -75,7 +78,7 @@ namespace ReAction.Actions
                 case AmountUnit.UntilBlocked:
                     break;
                 default:
-                    if (Definition.Distance > 0f && Mathf.Abs(x - _startX) >= Definition.Distance)
+                    if (Definition.Distance > 0f && Mathf.Abs(x - _startX) >= Definition.Distance * Request.Scale)
                     {
                         Succeed();
                         return;
@@ -105,7 +108,7 @@ namespace ReAction.Actions
 
         public BackstepAction(ActionDefinition definition, ActionRequest request) : base(definition, request) { }
 
-        private float Distance => Request.Unit == AmountUnit.Units ? Request.Amount : Definition.Distance;
+        private float Distance => Request.Unit == AmountUnit.Units ? Request.Amount : Definition.Distance * Request.Scale;
 
         protected override void OnBegin(IActorBody body)
         {
@@ -132,9 +135,15 @@ namespace ReAction.Actions
         }
     }
 
-    /// <summary>제자리 또는 지정 방향으로 점프하고, 착지하면 끝난다.</summary>
+    /// <summary>
+    /// 제자리 또는 지정 방향으로 점프하고, 착지하면 끝난다. "멀리" / "조금"은 가로 속도(= 날아가는 거리)를 바꾼다.
+    /// 방향 없이 "멀리 뛰어"면 바라보는 쪽으로 뛴다.
+    /// </summary>
     public sealed class JumpAction : PlayerAction
     {
+        private const float MinScale = 0.5f;
+        private const float MaxScale = 1.5f;
+
         // 점프 직후 몇 틱은 아직 땅에 닿아 있다고 판정될 수 있어 착지 검사를 미룬다.
         private const int MinAirTicks = 6;
 
@@ -151,9 +160,13 @@ namespace ReAction.Actions
             }
 
             _sign = Request.Direction.ToSign(body.Facing);
+            if (_sign == 0 && Request.Scale > 1f) _sign = body.Facing;
             if (_sign != 0) body.Facing = _sign;
-            body.Velocity = new Vector2(_sign * Definition.Speed, Definition.VerticalSpeed);
+            body.Velocity = new Vector2(_sign * HorizontalSpeed, Definition.VerticalSpeed);
         }
+
+        // 너무 멀리 뛰면 고블린을 그냥 넘어가 버려서 배수를 제한한다.
+        private float HorizontalSpeed => Definition.Speed * Mathf.Clamp(Request.Scale, MinScale, MaxScale);
 
         protected override void OnTick(IActorBody body)
         {
@@ -162,13 +175,17 @@ namespace ReAction.Actions
                 Succeed();
                 return;
             }
-            body.Velocity = new Vector2(_sign * Definition.Speed, body.Velocity.y);
+            body.Velocity = new Vector2(_sign * HorizontalSpeed, body.Velocity.y);
         }
     }
 
     /// <summary>정해진 시간 동안 빠르게 구른다 (슬라이딩도 같은 동작). 구르는 동안은 공격을 피한다.</summary>
     public sealed class RollAction : PlayerAction
     {
+        // 구르는 동안은 무적이라 너무 길게 구르지 못하게 배수를 제한한다.
+        private const float MinScale = 0.5f;
+        private const float MaxScale = 1.5f;
+
         private int _sign;
 
         public RollAction(ActionDefinition definition, ActionRequest request) : base(definition, request) { }
@@ -187,7 +204,8 @@ namespace ReAction.Actions
 
         protected override void OnTick(IActorBody body)
         {
-            if (ElapsedTicks > DeterministicClock.SecondsToTicks(Definition.Duration))
+            float seconds = Definition.Duration * Mathf.Clamp(Request.Scale, MinScale, MaxScale);
+            if (ElapsedTicks > DeterministicClock.SecondsToTicks(seconds))
             {
                 Succeed();
                 return;
@@ -222,7 +240,7 @@ namespace ReAction.Actions
 
         protected override bool KeepsClinging => true;
 
-        private float Seconds => Request.Unit == AmountUnit.Seconds ? Request.Amount : Definition.Duration;
+        private float Seconds => Request.Unit == AmountUnit.Seconds ? Request.Amount : Definition.Duration * Request.Scale;
 
         protected override int TimeoutTicks => 0;
 

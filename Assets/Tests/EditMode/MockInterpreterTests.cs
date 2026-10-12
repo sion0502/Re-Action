@@ -247,6 +247,31 @@ namespace ReAction.Tests
         }
 
         [Test]
+        public void DegreeWords_ScaleDefaultDistance()
+        {
+            var r = Interpret("조금 달려");
+            Assert.That(Types(r), Is.EqualTo(new[] { ActionType.Run }));
+            Assert.That(r.Actions[0].Unit, Is.EqualTo(AmountUnit.Scale));
+            Assert.That(r.Actions[0].Amount, Is.EqualTo(0.5f));
+
+            Assert.That(Interpret("아주 조금 걸어").Actions[0].Scale, Is.EqualTo(0.25f));
+            Assert.That(Interpret("멀리 달려").Actions[0].Scale, Is.EqualTo(2f));
+            Assert.That(Interpret("아주 멀리 달려").Actions[0].Scale, Is.EqualTo(3f));
+            Assert.That(Interpret("달려").Actions[0].Scale, Is.EqualTo(1f));
+
+            // 방향과 함께, 뒤에 붙어도, 구르기·대기에도
+            var back = Interpret("살짝 뒤로 물러나");
+            Assert.That(back.Actions[0].Direction, Is.EqualTo(Direction.Backward));
+            Assert.That(back.Actions[0].Scale, Is.EqualTo(0.5f));
+            Assert.That(Interpret("오른쪽으로 쭉 달려").Actions[0].Scale, Is.EqualTo(2f));
+            Assert.That(Interpret("굴러 멀리").Actions[0].Scale, Is.EqualTo(2f));
+            Assert.That(Interpret("조금 기다렸다가 베어").Actions[0].Scale, Is.EqualTo(0.5f));
+
+            // 정도 말은 베기에는 붙지 않는다
+            Assert.That(Interpret("조금 베어").Actions[0].HasAmount, Is.False);
+        }
+
+        [Test]
         public void SpeedWords_ChangeMoveType()
         {
             Assert.That(Types(Interpret("천천히 달려")), Is.EqualTo(new[] { ActionType.Walk }));

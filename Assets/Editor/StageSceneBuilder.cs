@@ -58,6 +58,7 @@ namespace ReAction.Editor
             FxBuilder.EnsureVhsFeature();
             EnsureLlmSettings();
             TitleLogoBuilder.Build();
+            TitleLogoBuilder.BuildFogMark();
 
             // 씬을 열면 저장 안 된 새 에셋이 언로드될 수 있다. 먼저 저장하고, 씬을 연 뒤 다시 불러 쓴다.
             AssetDatabase.SaveAssets();
@@ -92,6 +93,7 @@ namespace ReAction.Editor
             SetRef(stage, "_game", game);
             SetRef(stage, "_player", player.GetComponent<PlayerMotor>());
             SetRef(stage, "_fogSprite", square);
+            SetRef(stage, "_fogMarkSprite", AssetDatabase.LoadAssetAtPath<Sprite>(TitleLogoBuilder.FogMarkPath));
             SetRef(game, "_stage", stage);
 
             // 지형은 Stage 아래, 문·창문은 StageController 아래 (StageController가 찾아서 관리한다)

@@ -22,12 +22,17 @@ namespace ReAction.Stage
         [SerializeField] private Sprite _fogSprite;
         [SerializeField] private Color _fogColor = new Color(0.02f, 0.02f, 0.03f, 1f);
         [SerializeField] private float _fogFadeSeconds = 0.25f;
+        [Tooltip("가려진 방 가운데에 띄우는 물음표 (없으면 안 띄운다)")]
+        [SerializeField] private Sprite _fogMarkSprite;
+        [SerializeField] private Color _fogMarkColor = Color.white;
 
         [Tooltip("플레이어 위치에서 이 만큼 올린 점으로 현재 구역을 판정 (몸 중앙)")]
         [SerializeField] private Vector2 _playerProbeOffset = new Vector2(0f, 0.6f);
 
         private readonly Dictionary<string, SpriteRenderer> _fog = new Dictionary<string, SpriteRenderer>();
         private readonly List<SpriteRenderer> _fading = new List<SpriteRenderer>();
+        // 안개 → 그 위 물음표 (안개와 같이 사라진다)
+        private readonly Dictionary<SpriteRenderer, SpriteRenderer> _fogMarks = new Dictionary<SpriteRenderer, SpriteRenderer>();
         private readonly Dictionary<string, Door> _doors = new Dictionary<string, Door>();
         private readonly Dictionary<string, BreakableWindow> _windows = new Dictionary<string, BreakableWindow>();
 
@@ -153,6 +158,12 @@ namespace ReAction.Stage
                 var c = fog.color;
                 c.a = _fogFadeSeconds > 0f ? Mathf.MoveTowards(c.a, 0f, Time.deltaTime / _fogFadeSeconds) : 0f;
                 fog.color = c;
+                if (_fogMarks.TryGetValue(fog, out var mark))
+                {
+                    var mc = mark.color;
+                    mc.a = _fogMarkColor.a * c.a;
+                    mark.color = mc;
+                }
                 if (c.a > 0f) continue;
                 fog.gameObject.SetActive(false);
                 _fading.RemoveAt(i);
@@ -179,7 +190,30 @@ namespace ReAction.Stage
                 renderer.color = _fogColor;
                 renderer.sortingOrder = FogSortingOrder;
                 _fog.Add(zone.Id, renderer);
+                if (_fogMarkSprite != null) _fogMarks.Add(renderer, CreateFogMark(go.transform, zone));
             }
+        }
+
+        /// <summary>
+        /// 가려진 방 가운데 물음표. 안개(방 크기로 늘린 사각형)의 자식이라 배율을 되돌려 원래 도트 크기로 그리고,
+        /// 위치는 도트 격자(1/32)에 맞춰 픽셀이 뭉개지지 않게 한다.
+        /// </summary>
+        private SpriteRenderer CreateFogMark(Transform fog, ZoneData zone)
+        {
+            const float pixelsPerUnit = 32f;
+            var go = new GameObject("Mark");
+            go.transform.SetParent(fog, false);
+            var center = zone.Bounds.center;
+            go.transform.position = new Vector3(Mathf.Round(center.x * pixelsPerUnit) / pixelsPerUnit,
+                Mathf.Round(center.y * pixelsPerUnit) / pixelsPerUnit, fog.position.z);
+            var scale = fog.localScale;
+            go.transform.localScale = new Vector3(1f / scale.x, 1f / scale.y, 1f);
+
+            var renderer = go.AddComponent<SpriteRenderer>();
+            renderer.sprite = _fogMarkSprite;
+            renderer.color = _fogMarkColor;
+            renderer.sortingOrder = FogSortingOrder + 1;
+            return renderer;
         }
     }
 }

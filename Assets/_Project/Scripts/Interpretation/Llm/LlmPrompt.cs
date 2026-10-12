@@ -54,7 +54,7 @@ namespace ReAction.Interpretation.Llm
             sb.AppendLine("1. List actions in the order they appear in the sentence. One verb or clause = one action.");
             sb.AppendLine($"2. Never drop or merge actions to fit a limit. The game allows {maxActions} actions per command (Turn is free) and tells the player to shorten longer commands, so list every action you understood.");
             sb.AppendLine("3. direction: Forward = the way the character faces, Backward = behind, Left/Right = screen sides, None = unspecified. \"앞구르기\" is Roll Forward. Time words such as \"뒤에\", \"다음에\" are not directions.");
-            sb.AppendLine("4. amount/unit: \"N초 (동안)\" -> Seconds; \"N칸\", \"N걸음\", \"N미터\" -> Units; \"벽까지\", \"끝까지\" -> UntilBlocked with amount 0; \"잠깐\" -> 0.5 Seconds; otherwise None with amount 0.");
+            sb.AppendLine("4. amount/unit: \"N초 (동안)\" -> Seconds; \"N칸\", \"N걸음\", \"N미터\" -> Units; \"벽까지\", \"끝까지\" -> UntilBlocked with amount 0; \"잠깐\" -> 0.5 Seconds; degree words scale the default distance/duration with unit Scale: \"아주 조금\" 0.25, \"조금\"/\"살짝\"/\"약간\"/\"짧게\" 0.5, \"멀리\"/\"많이\"/\"쭉\"/\"길게\"/\"한참\" 2, \"아주 멀리\" 3; otherwise None with amount 0.");
             sb.AppendLine("5. Repetition such as \"두 번 베어\" means repeating that action (two Slash entries).");
             sb.AppendLine("6. target: use only zone ids from the provided zones list, or \"\" when no target is needed or none fits. Prefer the clicked target_zone_id when its kind fits the action; otherwise the matching zone connected to the current zone. Never invent ids.");
             sb.AppendLine("7. If a part of the command is not an available action, or is conditional (\"적이 오면 공격\"), leave it out and explain briefly in notes. If nothing is actionable, return an empty actions list.");
@@ -143,7 +143,8 @@ namespace ReAction.Interpretation.Llm
                     ? (float)item["amount"]
                     : 0f;
                 // 시간·거리 단위인데 값이 0 이하면 수치가 없는 것으로 본다 (모델이 단위만 채우는 경우가 있다).
-                if ((unit == AmountUnit.Seconds || unit == AmountUnit.Units) && amount <= 0f) unit = AmountUnit.None;
+                if ((unit == AmountUnit.Seconds || unit == AmountUnit.Units || unit == AmountUnit.Scale) && amount <= 0f)
+                    unit = AmountUnit.None;
                 if (unit == AmountUnit.None) amount = 0f;
                 string target = (string)item["target"];
 

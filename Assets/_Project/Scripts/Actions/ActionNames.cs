@@ -80,7 +80,7 @@ namespace ReAction.Actions
             return direction.Length == 0 ? name : $"{direction} {name}";
         }
 
-        /// <summary>예: "3초 동안", "2칸", "막힐 때까지"</summary>
+        /// <summary>예: "3초 동안", "2칸", "막힐 때까지", "짧게", "길게"</summary>
         public static string DescribeAmount(ActionRequest request)
         {
             switch (request.Unit)
@@ -88,6 +88,11 @@ namespace ReAction.Actions
                 case AmountUnit.Seconds: return $"{FormatNumber(request.Amount)}초 동안";
                 case AmountUnit.Units: return $"{FormatNumber(request.Amount)}칸";
                 case AmountUnit.UntilBlocked: return "막힐 때까지";
+                case AmountUnit.Scale:
+                    if (request.Amount <= 0.3f) return "아주 짧게";
+                    if (request.Amount < 1f) return "짧게";
+                    if (request.Amount >= 2.5f) return "아주 길게";
+                    return request.Amount > 1f ? "길게" : "";
                 default: return "";
             }
         }

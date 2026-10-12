@@ -21,6 +21,8 @@ namespace ReAction.Interpretation
     {
         public const float MaxSeconds = 5f;
         public const float MaxUnits = 15f;
+        /// <summary>"아주 멀리"(3배)까지.</summary>
+        public const float MaxScale = 3f;
 
         private readonly ZoneGraph _graph;
         private readonly ZoneKnowledge _knowledge;
@@ -76,6 +78,8 @@ namespace ReAction.Interpretation
                 return $"시간은 {MaxSeconds}초까지만 지정할 수 있다";
             if (action.Unit == AmountUnit.Units && (action.Amount <= 0f || action.Amount > MaxUnits))
                 return $"거리는 {MaxUnits}칸까지만 지정할 수 있다";
+            if (action.Unit == AmountUnit.Scale && (action.Amount <= 0f || action.Amount > MaxScale))
+                return "그렇게 멀리는 갈 수 없다";
 
             var requiredKind = ActionTargeting.RequiredKind(action.Type);
             if (requiredKind.HasValue)
