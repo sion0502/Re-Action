@@ -13,7 +13,7 @@ MonoBehaviour:
   m_Name: Action_Enter
   m_EditorClassIdentifier: ReAction.Runtime::ReAction.Actions.ActionDefinition
   _type: 31
-  _displayName: "\uC9C4\uC785"
+  _displayName: "\uD1B5\uACFC"
   _animationState: 
   _speed: 6
   _verticalSpeed: 0

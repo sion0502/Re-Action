@@ -126,11 +126,16 @@ namespace ReAction.Actions
             // (창문을 깨고 이미 안으로 뛰어든 뒤라면 할 일이 없다)
             var probe = body.Position + Vector2.up * BodyCenterY;
             ZoneData destination = null;
+            bool inConnectedSpace = false;
             foreach (var id in zone.Connections)
             {
                 var space = World.GetZone(id);
-                if (space != null && space.Kind.IsSpace() && !space.Bounds.Contains(probe)) destination = space;
+                if (space == null || !space.Kind.IsSpace()) continue;
+                if (space.Bounds.Contains(probe)) inConnectedSpace = true;
+                else destination = space;
             }
+            // 창문 밖으로 뛰어내린 뒤(벽에 매달려 있지도 않음)라면 이미 나온 것이다. 다시 들어가지 않는다.
+            if (zone.Kind == ZoneKind.Window && !inConnectedSpace && !body.IsClinging) destination = null;
             if (destination == null)
             {
                 _alreadyInside = true;
@@ -161,20 +166,29 @@ namespace ReAction.Actions
     }
 
     /// <summary>
-    /// 창문 깨고 진입 / 창문 넘기. 창문 바로 옆(외벽에 매달린 상태 포함)에서만 할 수 있다.
-    /// 깨거나 넘은 뒤 안쪽으로 뛰어든다.
+    /// 창문 깨고 뛰어들기 / 창문 넘기. 밖에서는 창문 바로 옆(외벽에 매달린 상태)에서만 할 수 있고, 깨거나 넘은 뒤 안쪽으로 뛰어든다.
+    /// 방 안에서는 창문 앞까지 걸어간 뒤 깨고 창턱을 넘어 바깥으로 뛰어내린다 (착지는 행동이 끝난 뒤 중력으로).
     /// </summary>
     public sealed class WindowAction : PlayerAction
     {
         private const float MaxReachX = 1.0f;
         private const float DiveSpeed = 5f;
         private const float DiveSeconds = 0.35f;
+        private const float ApproachSpeed = 6f;
+        // 방 안에서 창문 앞에 설 때 창문 안쪽 끝에서 떨어진 거리
+        private const float InsideStandOff = 0.35f;
+        // 안에서 밖으로 뛰어내릴 때 창턱을 넘도록 살짝 뛴다
+        private const float ExitHopSpeed = 4f;
+        private const float BodyCenterY = 0.6f;
 
         private BreakableWindow _window;
         private int _windupTicks;
         private int _sign;
         private int _diveTicks;
         private bool _diving;
+        private bool _fromInside;
+        private bool _approaching;
+        private float _standX;
 
         public WindowAction(ActionDefinition definition, ActionRequest request) : base(definition, request) { }
 
@@ -195,10 +209,19 @@ namespace ReAction.Actions
             float feetY = body.Position.y;
             bool nearX = Mathf.Abs(body.Position.x - bounds.center.x) <= MaxReachX;
             bool nearY = feetY >= bounds.min.y - 0.6f && feetY <= bounds.max.y;
-            if (!nearX || !nearY)
+            var room = InsideRoom(body);
+            _fromInside = room != null;
+            if (!nearY || (!nearX && !_fromInside))
             {
                 Fail("창문에 닿지 않는다. 먼저 창문 옆으로 가야 한다");
                 return;
+            }
+            if (_fromInside && !nearX)
+            {
+                // 방 안: 창문 앞까지 걸어간다
+                bool windowOnLeft = bounds.center.x < room.Bounds.center.x;
+                _standX = windowOnLeft ? room.Bounds.xMin + InsideStandOff : room.Bounds.xMax - InsideStandOff;
+                _approaching = true;
             }
 
             if (Request.Type == ActionType.VaultWindow && !_window.IsBroken)
@@ -214,19 +237,51 @@ namespace ReAction.Actions
 
         protected override void OnTick(IActorBody body)
         {
+            if (_approaching)
+            {
+                var result = MoveTowardX(body, _standX, ApproachSpeed);
+                if (result == MoveResult.Blocked)
+                {
+                    Fail("창문에 닿을 수 없다");
+                    return;
+                }
+                if (result != MoveResult.Arrived) return;
+                _approaching = false;
+                body.Facing = _sign;
+                _windupTicks += ElapsedTicks; // 도착한 뒤부터 예비 동작
+                return;
+            }
+
             if (!_diving)
             {
-                body.Velocity = Vector2.zero;
+                body.Velocity = new Vector2(0f, _fromInside ? body.Velocity.y : 0f);
                 if (ElapsedTicks < _windupTicks) return;
 
                 _window.Break();
                 ReleaseCling(body);
                 _diving = true;
+                if (_fromInside) body.Velocity = new Vector2(body.Velocity.x, ExitHopSpeed);
             }
 
             _diveTicks++;
-            body.Velocity = new Vector2(_sign * DiveSpeed, Mathf.Max(body.Velocity.y, 0f));
+            // 밖에서 안으로는 떨어지지 않게 수평으로 뛰어든다. 안에서 밖으로는 중력대로 뛰어내린다.
+            float vy = _fromInside ? body.Velocity.y : Mathf.Max(body.Velocity.y, 0f);
+            body.Velocity = new Vector2(_sign * DiveSpeed, vy);
             if (_diveTicks >= DeterministicClock.SecondsToTicks(DiveSeconds)) Succeed();
+        }
+
+        /// <summary>플레이어가 서 있는, 이 창문과 이어진 방. 밖(외벽)에 있으면 null.</summary>
+        private ZoneData InsideRoom(IActorBody body)
+        {
+            var zone = World.GetZone(Request.Target);
+            if (zone == null) return null;
+            var probe = body.Position + Vector2.up * BodyCenterY;
+            foreach (var id in zone.Connections)
+            {
+                var space = World.GetZone(id);
+                if (space != null && space.Kind == ZoneKind.Room && space.Bounds.Contains(probe)) return space;
+            }
+            return null;
         }
     }
 

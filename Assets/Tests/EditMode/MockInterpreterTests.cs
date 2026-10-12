@@ -170,6 +170,17 @@ namespace ReAction.Tests
         }
 
         [Test]
+        public void ExitThroughWindow_BreaksIt()
+        {
+            Assert.That(Types(Interpret("창문으로 나가")), Is.EqualTo(new[] { ActionType.CrashWindow }));
+            Assert.That(Types(Interpret("창문 밖으로 나가")), Is.EqualTo(new[] { ActionType.CrashWindow, ActionType.Enter }));
+            Assert.That(Types(Interpret("창문 깨고 뛰어내려")), Is.EqualTo(new[] { ActionType.CrashWindow, ActionType.Enter }));
+            Assert.That(Types(Interpret("문 열고 나가")), Is.EqualTo(new[] { ActionType.OpenDoor, ActionType.Enter }));
+            // "지나가"는 나가기가 아니라 이동
+            Assert.That(Types(Interpret("지나가")), Is.EqualTo(new[] { ActionType.Run }));
+        }
+
+        [Test]
         public void PlaceWordFront_IsNotADirection()
         {
             var r = Interpret("적 앞까지 달려");

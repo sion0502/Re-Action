@@ -13,7 +13,7 @@ MonoBehaviour:
   m_Name: Action_CrashWindow
   m_EditorClassIdentifier: ReAction.Runtime::ReAction.Actions.ActionDefinition
   _type: 16
-  _displayName: "\uCC3D\uBB38 \uAE68\uACE0 \uC9C4\uC785"
+  _displayName: "\uCC3D\uBB38 \uAE68\uACE0 \uB6F0\uC5B4\uB4E4\uAE30"
   _animationState: Attack1
   _speed: 0
   _verticalSpeed: 0
