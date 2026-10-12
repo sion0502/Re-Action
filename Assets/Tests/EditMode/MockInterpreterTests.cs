@@ -277,6 +277,8 @@ namespace ReAction.Tests
             Assert.That(Types(Interpret("천천히 달려")), Is.EqualTo(new[] { ActionType.Walk }));
             Assert.That(Types(Interpret("빨리 달려")), Is.EqualTo(new[] { ActionType.Sprint }));
             Assert.That(Types(Interpret("최대한 빨리 달려")), Is.EqualTo(new[] { ActionType.Sprint }));
+            Assert.That(Types(Interpret("질주해")), Is.EqualTo(new[] { ActionType.Sprint }));
+            Assert.That(Types(Interpret("전력질주")), Is.EqualTo(new[] { ActionType.Sprint }));
         }
 
         [Test]
