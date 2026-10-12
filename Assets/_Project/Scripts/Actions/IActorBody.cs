@@ -23,6 +23,9 @@ namespace ReAction.Actions
         /// <summary>외벽에 매달려 있는 상태 (중력 없이 제자리). 착지한 것과 같이 안정 상태로 본다.</summary>
         bool IsClinging { get; set; }
 
+        /// <summary>한쪽 방향 발판(사다리 구멍 덮개)을 위에서도 통과한다. 사다리를 내려가는 동안 켠다.</summary>
+        bool PassThroughPlatforms { get; set; }
+
         /// <summary>이 몸체가 속한 물리 씬. 공격 판정 같은 물리 질의는 여기서 한다 (테스트용 별도 씬 지원).</summary>
         PhysicsScene2D PhysicsScene { get; }
     }

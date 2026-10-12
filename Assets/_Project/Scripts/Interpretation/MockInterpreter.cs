@@ -39,7 +39,9 @@ namespace ReAction.Interpretation
             var directions = SelectLongestNonOverlapping(
                 FindAll(text, _table.Directions).Where(d => !Overlaps(d, blocked)));
 
-            var requests = actions.Select(m => new ActionRequest(m.Value)).ToList();
+            // "내려가"가 들어간 오르기는 사다리 내려가기 ("사다리 타고 내려가"처럼 합쳐진 것도)
+            var requests = actions.Select(m => new ActionRequest(m.Value,
+                IsClimbDown(text, m) ? Direction.Down : Direction.None)).ToList();
             AssignDirections(actions, directions, requests);
             var repeats = ApplyModifiers(actions, modifiers, requests);
             requests = ExpandRepeats(requests, repeats);
@@ -106,8 +108,10 @@ namespace ReAction.Interpretation
                 if (merged.Count > 0)
                 {
                     var prev = merged[merged.Count - 1];
+                    // "아래층으로 내려가", "위층으로 올라가"처럼 오르내리는 말이 이어진 것도 하나다
                     bool climbContinues = m.Value == ActionType.None &&
-                        (prev.Value == ActionType.WallClimb || prev.Value == ActionType.ClimbLadder);
+                        (prev.Value == ActionType.WallClimb || prev.Value == ActionType.ClimbLadder ||
+                         prev.Value == ActionType.None);
                     bool sameMove = m.Value == prev.Value && MergeableMoves.Contains(m.Value) && m.Start >= prev.End &&
                         SameMotionGap.IsMatch(text.Substring(prev.End, m.Start - prev.End));
                     if (climbContinues || sameMove)
@@ -119,6 +123,13 @@ namespace ReAction.Interpretation
                 merged.Add(m);
             }
             return merged;
+        }
+
+        private bool IsClimbDown(string text, Match<ActionType> m)
+        {
+            if (m.Value != ActionType.None && m.Value != ActionType.ClimbLadder) return false;
+            string span = text.Substring(m.Start, m.End - m.Start);
+            return _table.ClimbDownWords.Any(regex => regex.IsMatch(span));
         }
 
         /// <summary>
@@ -140,7 +151,9 @@ namespace ReAction.Interpretation
             {
                 if (requests[i].Type != ActionType.None) continue;
                 var r = requests[i];
-                r.Type = climb;
+                // 벽은 내려갈 수 없다: 내려가기는 항상 사다리. 사다리로 오르면 위쪽 사다리를 고르도록 Up을 붙인다.
+                r.Type = r.Direction == Direction.Down ? ActionType.ClimbLadder : climb;
+                if (r.Type == ActionType.ClimbLadder && r.Direction == Direction.None) r.Direction = Direction.Up;
                 requests[i] = r;
             }
         }
@@ -343,7 +356,7 @@ namespace ReAction.Interpretation
                 {
                     r.Target = target != null && target.Kind == kind.Value
                         ? target.Id
-                        : GuessZone(request, kind.Value);
+                        : r.Type == ActionType.ClimbLadder ? GuessLadder(request, r.Direction) : GuessZone(request, kind.Value);
                     lastEntryPoint = r.Target;
                 }
                 else if (r.Type == ActionType.Enter)
@@ -358,6 +371,28 @@ namespace ReAction.Interpretation
 
                 requests[i] = r;
             }
+        }
+
+        /// <summary>
+        /// 사다리를 안 찍었을 때: 지금 방에 붙은 사다리 중 내려가기면 바닥 쪽(사다리 꼭대기가 이 방 바닥),
+        /// 오르기면 위쪽(사다리 밑이 이 방 바닥)을 고른다. 하나로 정해지지 않으면 기존 추정을 쓴다.
+        /// </summary>
+        private static string GuessLadder(InterpretRequest request, Direction direction)
+        {
+            var current = request.RevealedZones.FirstOrDefault(z => z.Id == request.CurrentZoneId);
+            if (current != null && (direction == Direction.Down || direction == Direction.Up))
+            {
+                const float tolerance = 0.5f;
+                var ladders = request.RevealedZones
+                    .Where(z => z.Kind == ZoneKind.Ladder)
+                    .Where(z => current.Connections.Contains(z.Id) || z.Connections.Contains(current.Id))
+                    .Where(z => direction == Direction.Down
+                        ? Mathf.Abs(z.Bounds.yMax - current.Bounds.yMin) < tolerance
+                        : Mathf.Abs(z.Bounds.yMin - current.Bounds.yMin) < tolerance)
+                    .ToList();
+                if (ladders.Count == 1) return ladders[0].Id;
+            }
+            return GuessZone(request, ZoneKind.Ladder);
         }
 
         /// <summary>목표를 안 찍었을 때: 현재 구역과 연결된 해당 종류 구역이 하나뿐이면 그것으로 추정.</summary>

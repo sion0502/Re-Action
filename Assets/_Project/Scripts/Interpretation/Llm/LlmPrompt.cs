@@ -33,7 +33,7 @@ namespace ReAction.Interpretation.Llm
             { ActionType.CrashWindow, "smash a window and dive in; must be right next to it (e.g. after climbing the wall). Target: a Window zone id." },
             { ActionType.VaultWindow, "climb through an already broken window. Target: a Window zone id." },
             { ActionType.WallClimb, "climb an exterior wall up to window height and hang there. Target: an ExteriorWall zone id." },
-            { ActionType.ClimbLadder, "climb a ladder to the floor above (\"사다리\", \"위층\"). Target: a Ladder zone id." },
+            { ActionType.ClimbLadder, "climb a ladder up to the floor above (\"사다리\", \"위층\"), or down to the floor below with direction Down (\"내려가\", \"아래층\"). Target: a Ladder zone id." },
         };
 
         public static string BuildSystemPrompt(IEnumerable<ActionType> allowedActions, int maxActions)
@@ -137,7 +137,9 @@ namespace ReAction.Interpretation.Llm
 
                 Enum.TryParse((string)item["direction"], true, out Direction direction);
                 // 문·창문·벽·사다리·진입은 대상 위치로 방향이 정해진다. 모델이 붙인 방향은 무시한다.
-                if (ActionTargeting.RequiredKind(type).HasValue || type == ActionType.Enter) direction = Direction.None;
+                if ((ActionTargeting.RequiredKind(type).HasValue || type == ActionType.Enter) &&
+                    !(type == ActionType.ClimbLadder && (direction == Direction.Up || direction == Direction.Down)))
+                    direction = Direction.None;
                 Enum.TryParse((string)item["unit"], true, out AmountUnit unit);
                 float amount = item["amount"]?.Type == JTokenType.Float || item["amount"]?.Type == JTokenType.Integer
                     ? (float)item["amount"]

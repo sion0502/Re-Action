@@ -296,16 +296,20 @@ namespace ReAction.Actions
     }
 
     /// <summary>
-    /// 사다리 오르기: 사다리 앞까지 가서 위층 바닥 높이까지 올라간 뒤 사다리 구멍 덮개 위에 선다.
+    /// 사다리 오르내리기. 오르기: 사다리 앞까지 가서 위층 바닥 높이까지 올라간 뒤 사다리 구멍 덮개 위에 선다.
+    /// 내려가기: 위층에서 사다리 구멍 위로 가서 덮개를 통과해 아래층 바닥까지 내려간다.
+    /// 방향(Up/Down)이 없으면 서 있는 높이로 정한다 (사다리 아래면 오르기, 위면 내려가기).
     /// </summary>
     public sealed class LadderAction : PlayerAction
     {
         private const float ApproachSpeed = 6f;
-        private const float MaxFootGapFromBottom = 0.6f;
+        private const float MaxFootGap = 0.6f;
         private const float TopClearance = 0.05f;
+        private const float BottomClearance = 0.05f;
 
         private ZoneData _ladder;
         private bool _climbing;
+        private bool _down;
 
         public LadderAction(ActionDefinition definition, ActionRequest request) : base(definition, request) { }
 
@@ -319,10 +323,24 @@ namespace ReAction.Actions
                 Fail("근처에 사다리가 없다");
                 return;
             }
-            if (Mathf.Abs(body.Position.y - _ladder.Bounds.yMin) > MaxFootGapFromBottom)
+            bool atBottom = Mathf.Abs(body.Position.y - _ladder.Bounds.yMin) <= MaxFootGap;
+            bool atTop = Mathf.Abs(body.Position.y - _ladder.Bounds.yMax) <= MaxFootGap;
+            if (Request.Direction == Direction.Down && !atTop)
+            {
+                Fail(atBottom ? "이미 사다리 아래에 있다" : "사다리에 닿지 않는다");
+                return;
+            }
+            if (Request.Direction == Direction.Up && !atBottom)
+            {
+                Fail(atTop ? "이미 사다리 위에 있다" : "사다리에 닿지 않는다");
+                return;
+            }
+            if (!atBottom && !atTop)
             {
                 Fail("사다리에 닿지 않는다");
+                return;
             }
+            _down = Request.Direction == Direction.Down || (Request.Direction != Direction.Up && !atBottom);
         }
 
         protected override void OnTick(IActorBody body)
@@ -339,6 +357,21 @@ namespace ReAction.Actions
 
                 _climbing = true;
                 body.GravityEnabled = false;
+                if (_down) body.PassThroughPlatforms = true;
+                return;
+            }
+
+            if (_down)
+            {
+                if (body.Position.y <= _ladder.Bounds.yMin + BottomClearance)
+                {
+                    body.GravityEnabled = true;
+                    body.PassThroughPlatforms = false;
+                    body.Velocity = Vector2.zero;
+                    Succeed();
+                    return;
+                }
+                body.Velocity = new Vector2(0f, -Definition.Speed);
                 return;
             }
 
@@ -356,6 +389,7 @@ namespace ReAction.Actions
         {
             body.Velocity = new Vector2(0f, Mathf.Min(0f, body.Velocity.y));
             body.GravityEnabled = true;
+            body.PassThroughPlatforms = false;
         }
     }
 }

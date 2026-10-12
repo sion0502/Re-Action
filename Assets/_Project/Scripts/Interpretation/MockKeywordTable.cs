@@ -34,6 +34,12 @@ namespace ReAction.Interpretation
         /// </summary>
         public const string ClimbUpType = "ClimbUp";
 
+        /// <summary>JSON type "ClimbDown": "내려가", "아래층". ClimbUp처럼 상황에 따라 정하되 사다리를 내려간다(Direction.Down).</summary>
+        public const string ClimbDownType = "ClimbDown";
+
+        /// <summary>ClimbDown 키워드. 이 말이 들어간 오르기 행동은 내려가기로 본다 ("사다리 타고 내려가").</summary>
+        public List<Regex> ClimbDownWords { get; } = new List<Regex>();
+
         /// <summary>키워드 하나가 행동 여러 개가 될 수 있다 ("점프 공격" → 점프, 베기).</summary>
         public List<Pattern<ActionType[]>> Actions { get; } = new List<Pattern<ActionType[]>>();
         public List<Pattern<Direction>> Directions { get; } = new List<Pattern<Direction>>();
@@ -75,7 +81,10 @@ namespace ReAction.Interpretation
                 var names = entry.types != null && entry.types.Length > 0 ? entry.types : new[] { entry.type };
                 var types = names.Select(name => ParseActionType(name, aliases)).ToArray();
                 foreach (var keyword in entry.keywords)
+                {
                     table.Actions.Add(new Pattern<ActionType[]>(Compile(keyword), types));
+                    if (entry.type == ClimbDownType) table.ClimbDownWords.Add(Compile(keyword));
+                }
             }
 
             foreach (var entry in data.directions ?? Array.Empty<DirectionEntry>())
@@ -107,7 +116,7 @@ namespace ReAction.Interpretation
 
         private static ActionType ParseActionType(string name, Dictionary<string, string> aliases)
         {
-            if (name == ClimbUpType) return ActionType.None;
+            if (name == ClimbUpType || name == ClimbDownType) return ActionType.None;
             if (aliases.TryGetValue(name, out var alias)) name = alias;
             if (!Enum.TryParse(name, out ActionType type) || type == ActionType.None)
                 throw new ArgumentException($"Unknown ActionType in keyword table: {name}");

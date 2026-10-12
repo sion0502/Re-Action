@@ -123,6 +123,37 @@ namespace ReAction.Tests
         }
 
         [Test]
+        public void ClimbDown_GoesDownTheLadderBelow()
+        {
+            // 3F-B: 바닥 쪽 사다리(2층에서 올라오는 것)와 천장 쪽 사다리(옥상으로) 둘 다 붙어 있다
+            var zones = new List<ZoneData>
+            {
+                new ZoneData { Id = "3F-B", Kind = ZoneKind.Room, Bounds = Rect.MinMaxRect(0f, 2f, 8f, 4f),
+                    Connections = new[] { "Ladder_Below", "Ladder_Up" } },
+                new ZoneData { Id = "Ladder_Below", Kind = ZoneKind.Ladder, Bounds = Rect.MinMaxRect(7f, 0f, 8f, 2f) },
+                new ZoneData { Id = "Ladder_Up", Kind = ZoneKind.Ladder, Bounds = Rect.MinMaxRect(7f, 2f, 8f, 4.5f) },
+            };
+
+            var down = Interpret("내려가", current: "3F-B", zones: zones);
+            Assert.That(Types(down), Is.EqualTo(new[] { ActionType.ClimbLadder }));
+            Assert.That(down.Actions[0].Direction, Is.EqualTo(Direction.Down));
+            Assert.That(down.Actions[0].Target, Is.EqualTo("Ladder_Below"));
+
+            var both = Interpret("사다리 타고 내려가서 베어", current: "3F-B", zones: zones);
+            Assert.That(Types(both), Is.EqualTo(new[] { ActionType.ClimbLadder, ActionType.Slash }));
+            Assert.That(both.Actions[0].Direction, Is.EqualTo(Direction.Down));
+
+            var up = Interpret("위로 올라가", current: "3F-B", zones: zones);
+            Assert.That(up.Actions[0].Type, Is.EqualTo(ActionType.ClimbLadder));
+            Assert.That(up.Actions[0].Target, Is.EqualTo("Ladder_Up"));
+            Assert.That(Types(Interpret("아래층으로 가")), Is.EqualTo(new[] { ActionType.ClimbLadder }));
+            Assert.That(Types(Interpret("아래층으로 내려가")), Is.EqualTo(new[] { ActionType.ClimbLadder }));
+            Assert.That(Types(Interpret("위층으로 올라가")), Is.EqualTo(new[] { ActionType.ClimbLadder }));
+            // "내려쳐"는 내려가기가 아니라 베기
+            Assert.That(Types(Interpret("내려쳐")), Is.EqualTo(new[] { ActionType.Slash }));
+        }
+
+        [Test]
         public void SameMotionInTwoWords_CountsOnce()
         {
             Assert.That(Types(Interpret("점프해서 넘어")), Is.EqualTo(new[] { ActionType.Jump }));

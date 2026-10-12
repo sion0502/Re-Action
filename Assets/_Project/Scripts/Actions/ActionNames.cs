@@ -59,6 +59,8 @@ namespace ReAction.Actions
                 case Direction.Backward: return "뒤로";
                 case Direction.Left: return "왼쪽으로";
                 case Direction.Right: return "오른쪽으로";
+                case Direction.Up: return "위로";
+                case Direction.Down: return "아래로";
                 default: return "";
             }
         }
@@ -72,6 +74,9 @@ namespace ReAction.Actions
                     ? "뒤돌기"
                     : $"{Get(request.Direction)} 돌기";
             }
+
+            if (request.Type == ActionType.ClimbLadder)
+                return request.Direction == Direction.Down ? "사다리 내려가기" : Get(request.Type);
 
             string direction = Get(request.Direction);
             string amount = DescribeAmount(request);

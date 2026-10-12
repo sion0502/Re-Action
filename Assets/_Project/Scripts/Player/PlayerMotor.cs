@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using ReAction.Actions;
 using ReAction.Core;
 using UnityEngine;
@@ -25,6 +26,8 @@ namespace ReAction.Player
 
         private int _facing;
         private float _gravityScale;
+        private bool _passThroughPlatforms;
+        private List<Collider2D> _oneWayPlatforms;
         private Vector2 _startPosition;
         private int _startFacing;
 
@@ -76,6 +79,34 @@ namespace ReAction.Player
 
         public bool Invulnerable { get; set; }
         public bool IsClinging { get; set; }
+
+        public bool PassThroughPlatforms
+        {
+            get => _passThroughPlatforms;
+            set
+            {
+                Initialize();
+                if (_passThroughPlatforms == value) return;
+                _passThroughPlatforms = value;
+                foreach (var platform in OneWayPlatforms()) Physics2D.IgnoreCollision(_collider, platform, value);
+            }
+        }
+
+        /// <summary>같은 씬의 한쪽 방향 발판 (사다리 구멍 덮개). 스테이지가 바뀌지 않으므로 처음 한 번만 찾는다.</summary>
+        private List<Collider2D> OneWayPlatforms()
+        {
+            if (_oneWayPlatforms != null) return _oneWayPlatforms;
+            _oneWayPlatforms = new List<Collider2D>();
+            foreach (var root in gameObject.scene.GetRootGameObjects())
+            {
+                foreach (var effector in root.GetComponentsInChildren<PlatformEffector2D>(true))
+                {
+                    var collider = effector.GetComponent<Collider2D>();
+                    if (collider != null) _oneWayPlatforms.Add(collider);
+                }
+            }
+            return _oneWayPlatforms;
+        }
 
         public bool GravityEnabled
         {
@@ -153,6 +184,7 @@ namespace ReAction.Player
             Invulnerable = false;
             IsClinging = false;
             GravityEnabled = true;
+            PassThroughPlatforms = false;
             IsDead = false;
             DeathCause = "";
         }

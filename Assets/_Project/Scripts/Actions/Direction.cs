@@ -1,7 +1,8 @@
 namespace ReAction.Actions
 {
     /// <summary>
-    /// Forward/Backward는 현재 바라보는 방향 기준, Left/Right는 화면 기준.
+    /// Forward/Backward는 현재 바라보는 방향 기준, Left/Right는 화면 기준. Up/Down은 사다리를 오를지 내려갈지.
+    /// 기록에 정수로 저장되므로 새 값은 항상 맨 뒤에 추가한다.
     /// </summary>
     public enum Direction
     {
@@ -10,6 +11,8 @@ namespace ReAction.Actions
         Backward,
         Left,
         Right,
+        Up,
+        Down,
     }
 
     public static class DirectionExtensions
