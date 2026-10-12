@@ -137,8 +137,14 @@ namespace ReAction.Stage
             if (revealed == null || !revealed.Kind.IsSpace()) return;
             foreach (var zone in Graph.Zones)
             {
-                if (zone.Kind.IsSpace() || Knowledge.IsRevealed(zone.Id)) continue;
-                if (System.Array.IndexOf(zone.Connections, zoneId) >= 0) Knowledge.Reveal(zone.Id);
+                if (Knowledge.IsRevealed(zone.Id)) continue;
+                bool connected = System.Array.IndexOf(zone.Connections, zoneId) >= 0 ||
+                                 System.Array.IndexOf(revealed.Connections, zone.Id) >= 0;
+                if (!connected) continue;
+                // 문 없이 바로 이어진 옆방은 한 공간처럼 함께 보인다 (문·사다리 너머 방은 따로).
+                // 공간이 아닌 것(사다리·안쪽 문)은 붙어 있으면 알게 된다.
+                if (!zone.Kind.IsSpace() || zone.Kind == ZoneKind.Room && revealed.Kind == ZoneKind.Room)
+                    Knowledge.Reveal(zone.Id);
             }
         }
 
